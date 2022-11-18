@@ -1,0 +1,242 @@
+### 1. 原始场景和代码
+抽象工厂是在简单工厂的基础上演变而来的。我们可以将抽象工厂的原始需求定义为：
+我们很多地方需要随时创建一个手机，而且这个手机后面有可能替换为其他类型。
+
+那么我们可以先拷贝简单工厂的代码：
+```
+public class PhoneFactory {
+    public static Phone createPhone() {
+        return new ApplePhone();
+    }
+}
+
+public interface Phone {
+    // ...
+}
+
+public class ApplePhone implements Phone {
+    // ...
+}
+```
+
+### 2. 演变过程
+
+需求一：**现在不仅要创建手机，还要创建pad和手表。**
+一个很基本的业务需求，和创建手机一模一样，增加两个方法就可以了。当然，pad和手表肯定也可能有其他种类替换，所以，我们对pad和手表也分别抽取了接口。代码变成了如下：
+```
+public class PhoneFactory {
+    public static Phone createPhone() {
+        return new ApplePhone();
+    }
+	
+    public static Pad createPad() {
+        return new ApplePad();
+    }
+	
+    public static Watch createWatch() {
+        return new AppleWatch();
+    }
+}
+
+public interface Phone {
+    // ...
+}
+
+public class ApplePhone implements Phone {
+    // ...
+}
+
+public interface Pad {
+    // ...
+}
+
+public class ApplePad implements Pad {
+    // ...
+}
+
+public interface Watch {
+    // ...
+}
+
+public class AppleWatch implements Watch {
+    // ...
+}
+```
+
+与简单工厂的代码例子相比，这里只是创建的产品多了一些而已，而创建三个产品还是一个产品并没有本质上的区别。所以这仍然还是一个简单工厂模式。
+
+需求二：**现在就需要创建华为的手机，pad和手表，具体是生产苹果的还是华为的让调用者有自己选择的权利。**
+
+这个需求可以理解为PhoneFactory有多种实现的可能性，而且要隔离这种实现变化对调用者的影响。我们可以让调用者和PhoneFactory做一个BA转换即可。
+
+// TODO 如果使用进阶版的简单工厂怎么样，这里相当于又回到依赖，组合和继承的讨论了。
+
+```
+public interface PhoneFactory {
+    Phone createPhone();
+	
+    Pad createPad();
+	
+    Watch createWatch();
+}
+
+public class ApplePhoneFactory implements PhoneFactory {
+    @Override
+	public Phone createPhone() {
+        return new ApplePhone();
+    }
+	
+	@Override
+    public Pad createPad() {
+        return new ApplePad();
+    }
+	
+	@Override
+    public Watch createWatch() {
+        return new AppleWatch();
+    }
+}
+
+public class HWPhoneFactory implements PhoneFactory {
+    @Override
+	public Phone createPhone() {
+        return new HWPhone();
+    }
+	
+	@Override
+    public Pad createPad() {
+        return new HWPad();
+    }
+	
+	@Override
+    public Watch createWatch() {
+        return new HWWatch();
+    }
+}
+
+public interface Phone {
+    // ...
+}
+
+public class ApplePhone implements Phone {
+    // ...
+}
+
+public class HWPhone implements Phone {
+    // ...
+}
+
+// 省略了pad和watch的代码
+
+```
+
+而这就是抽象工厂模式的标准代码模型，调用者只需要声明自己要使用哪个工厂即可，便可以生产一系列的产品，而并不注具体生产出来的是Apple产品还是HW产品，以后也可以方便的增加其他新的系列产品。
+
+
+
+
+### 3. 思路扩展
+1. 我们可以尝试将抽象工厂模式的几个Factory进行参数化后，看下会发生什么（参考参数化和反参数化一章）。
+方式一：抽取成员变量
+
+```
+public class PhoneFactory {
+    private int type;
+	
+	public PhoneFactory(int type) {
+	    this.type = type;
+	}
+	
+	public Phone createPhone() {
+	    if (type == 1) {
+            return new HWPhone();
+        } else if (type == 2) {
+            return new WindowPhone();
+        } else {
+            return new ApplePhone();
+        }
+    }
+	
+	public Pad createPad() {
+        if (type == 1) {
+            return new HWPad();
+        } else if (type == 2) {
+            return new WindowPad();
+        } else {
+            return new ApplePad();
+        }
+    }
+	
+    public Watch createWatch() {
+        if (type == 1) {
+            return new HWWatch();
+        } else if (type == 2) {
+            return new WindowWatch();
+        } else {
+            return new AppleWatch();
+        }
+    }
+}
+// phone, pad, watch的代码与之前一样
+
+```
+
+这其实是这种写法调用的地方则根据需要在生成PhoneFactory时传入不同的type就可以了。
+
+方式二：抽取方法参数
+```
+public class PhoneFactory {
+	
+	public static Phone createPhone(int type) {
+	    if (type == 1) {
+            return new HWPhone();
+        } else if (type == 2) {
+            return new WindowPhone();
+        } else {
+            return new ApplePhone();
+        }
+    }
+	
+	public static Pad createPad(int type) {
+        if (type == 1) {
+            return new HWPad();
+        } else if (type == 2) {
+            return new WindowPad();
+        } else {
+            return new ApplePad();
+        }
+    }
+	
+    public static Watch createWatch(int type) {
+        if (type == 1) {
+            return new HWWatch();
+        } else if (type == 2) {
+            return new WindowWatch();
+        } else {
+            return new AppleWatch();
+        }
+    }
+}
+// phone, pad, watch的代码与之前一样
+```
+
+// 如果总是生产一种类型的产品，还可以将type从依赖关系改为组合关系
+
+这种因为将type放入方法的传参，整个PhoneFactory就可以做成单例或者所有方法都使用static修饰了。整体来说，两种参数化的方式并没有太大区别，我个人会稍微觉得抽取成员变量要好一些，这样可以避免每次调方法都需要传参，而不同类型的PhoneFactory我会做全局公共变量，避免重复生成。当然，我并不是推荐大家使用方式一，只要没有特殊的场景要求，我建议是自己怎么方便怎么来，对设计的审美本来就是主观而且灵活的。
+
+2. 参数化的简单工厂和抽象工厂的比较
+// TODO 换个说法才对，下面第一段话
+其实我不太愿意列举设计模式的优劣点，我觉得所有的设计模式都是优秀的，只是它有可能不适用于某些场景而已。如果有人说选择了一种设计模式，就必须忍受它给我们带来的缺点，这绝对是个错误的说法。如果你要忍受一种设计模式的缺点，证明你没有选择对合适的模式，我们费尽心思去引入一种模式，自然是冲着优点去的。
+我在很多博客中看到有人说简单工厂的缺点是不能继承，试问一个只包含static方法的工具类我为何要让它可以继承。这本身就是一个自我选择的问题，你希望它什么样就设计成什么样，你如果想让它可以继承，你自然不会设计成静态方法类。这和我们评价菜刀是一样的：它切菜非常方便，但如果拿去切人就有点危险。我想我们并不会认为“切人很锋利”是菜刀的缺点，因为我们知道我们选择使用它就是用来切菜的。
+
+所以后面在比较两种设计手段时，我会尽量从他们合适的场景去说。
+试想一下，如果新加一个新的系列产品，明显抽象工厂会更合适，它只需要新增一个PhoneFactory的实现即可，简单工厂则每个函数都要加一个if分支。
+但如果是增加一个新的电子产品呢，比如电脑，我们会发现简单工厂又会方便一点，它只需要加一个方法就好；如果是抽象工厂，则所有的Factory类都需要增加一个方法。
+两者的代码量其实不会有太大差距，只是改动范围不同而已。根据实际需求可能的变化方向选择即可，如果不确定，怎么方便怎么来。
+
+
+> 参数化和反参数化，一个更容易纵向扩展，一个更容易横向扩展；这像极了我们做数据库设计时提到的横表和竖表的概念。
+// TODO 不仅仅是横着扩展竖着扩展，一个可以混配，一个不方便
+
+抽象工厂因为多了一层Factory的抽象，总会让人觉得抽象工厂比简单工厂要高大上很多，其实从上面的例子来看，它的本质和简单工厂几乎一样，两者可以通过参数化和反参数化互相转换。而且如果将简单工厂配合类扫描一起使用，最终的真实效果往往都比抽象工厂更好。
+
