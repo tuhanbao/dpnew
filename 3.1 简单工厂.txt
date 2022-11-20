@@ -1,11 +1,43 @@
 简单工厂并非23种设计模式原著中的一种，但是关于设计模式的讨论会经常提及这个模式，他是创建型模式的基础，所以我将其作为我们讨论的第一个设计模式。
 
+在开始讲解简单工厂模式之前，我想请各位读者回答一个问题：你觉得下面的代码片段3.1.1是一种工厂模式吗？
+```
+// 代码片段3.1.1
+public class Client {
+    public static void main(String[] args) {
+        
+		// 制作一个蛋糕
+		ChocolateCake cake = CakeFactory.createCake();
+		
+		// some code...
+    }
+}
+
+public class CakeFactory {
+	
+    public static ChocolateCake createCake() {
+		ChocolateCake cake = new ChocolateCake();
+		// 蛋糕的一些制作细节，放糖，放奶油等
+		// some code...
+		return cake;
+    }
+}
+
+public class ChocolateCake {
+	// some code...
+}
+
+```
+
+让我们带着这个问题开始我们本章节的讨论。
+
 
 ### 1. 原始场景和代码
 有个client角色，想买苹果手机，为了避免造出来的手机不会浪费，我们必须等客户付款后才能生产手机。
 
 用代码描述则是这样：
 ```
+// 代码片段3.1.2
 public class Client {
     public ApplePhone buyPhone() {
 	    // 客户付款
@@ -32,6 +64,7 @@ public class ApplePhone {
 
 如果完全不动脑子，代码可以写成如下：
 ```
+// 代码片段3.1.3
 public class Client {
     public ApplePhone buyApplePhone() {
 	    // 客户付款
@@ -80,7 +113,7 @@ private void active(ApplePhone phone) {
 
 这是很明显的一个事物有多种实现的场景，我们必须先做一个最基本的BA转换，代码变成如下：
 ```
-// 代码片段3.1.1
+// 代码片段3.1.4
 public class Client {
     public Phone buyPhone() {
         // 客户付款
@@ -91,6 +124,8 @@ public class Client {
 		
 	    // 手机的激活，开发票等
         // some code...
+		
+		return phone;
     }
 }
 
@@ -107,7 +142,7 @@ public class HWPhone implements Phone {
 }
 ```
 
-我们知道BA转换不能解决实例化的问题，所以当顾客想买一个华为手机时，我们还是避免不了修改buyPhone函数的代码：
+但是这样写之后，当顾客想买一个华为手机时，我们还是避免不了修改buyPhone函数的代码（BA转换解决不了依赖对象创建问题，详见2.3 依赖导致原则中讲解）：
 ```
 	Phone phone = new ApplePhone();
     改为
@@ -117,267 +152,345 @@ public class HWPhone implements Phone {
 
 此时如果直接使用简单工厂模式，代码会变成这样：
 ```
+// 代码片段3.1.5 简单工厂模式
 public class Client {
     public Phone buyPhone() {
         // 客户付款
 		// some code ...
 		
 		// 生产一台手机
-		Phone phone = PhoneFactory.createPhone();
+		Phone phone = PhoneFactory.createPhone(PhoneFactory.APPLE);
 		
 	    // 手机的激活，开发票等
         // some code...
-    }
-}
-public class A {
-    public void test() {
-		// some code ...
-        Phone phone = PhoneFactory.createPhone();
-        // some code ...
+		
+		return phone;
     }
 }
 
 public class PhoneFactory {
-    public static Phone createPhone() {
-        return new ApplePhone();
+
+	public static final int APPLE = 1;
+	
+	public static final int HW = 2;
+	
+    public static Phone createPhone(int type) {
+		if (type == APPLE) {
+			return new ApplePhone();
+		} else {
+			return new HWPhone();
+		}
     }
 }
 
 public interface Phone {
-    // ...
+    // some code...
 }
 
 public class ApplePhone implements Phone {
-    // ...
-}
-```
-在当前的需求场景下，这种写法与代码片段3.1.1相比并没有好多少，反而还多了一个类。未来的一天ApplePhone要换成HWPhone，它并不能少写一行代码，无非一个改的是class A，一个改的是PhoneFactory；而且类A并没有什么特殊的稳定性要求，也并不需要一个Factory类来隔离变化。所以，代码片段3.1.2的写法目前看起来更糟糕。
-
-需求二： **有很多处都需要创建一个手机**
-加上这条需求，好像可以上工厂模式了，其实并不能确定。
-我们可以很明显的看到，工厂模式一个标准的ACB转换，而ACB转换的主要场景是：“有很多A依赖同一个B，而且这些A的变化行为比较一致（会同时一起变化）”。
-试想一下，我们的代码到处在使用ArrayList, LinkedList，为什么我们没有封装一个ListFactory？就是因为这些使用List的地方没有一致的行为。比如我们有三处代码使用ArrayList
-```
-public void test1() {
-    List list = new ArrayList<>();
-    // ...
-}
-
-public void test2() {
-    List list = new ArrayList<>();
-    // ...
-}
-
-public void test3() {
-    List list = new ArrayList<>();
-    // ...
-}
-
-```
-于是我们抽取了一个List工厂，变成如下：
-```
-public void test1() {
-    List list = ListFactory.createList();
-    // ...
-}
-
-public void test2() {
-    List list = ListFactory.createList();
-    // ...
-}
-
-public void test3() {
-    List list = ListFactory.createList();
-    // ...
-}
-
-public class ListFactory {
-    public static List createList() {
-        return new ArrayList<>();
-    }
-
-}
-
-```
-此时，test2方法需求变了，要求改成LinkedList，该咋办？test1、test3说它两不用改，而且不能改，改了性能要变差。
-所以我们不得不给ListFactory增加一个方法，而且为了避免不影响原有代码，使用了重载的方式：
-```
-public void test1() {
-    List list = ListFactory.createList();
-    // ...
-}
-
-public void test2() {
-    List list = ListFactory.createList(1);
-    // ...
-}
-
-public void test3() {
-    List list = ListFactory.createList();
-    // ...
-}
-
-public class ListFactory {
-    public static List createList() {
-        return createList(0);
-    }
-    
-    public static List createList(int type) {
-        if (type == 1) {
-            return new LinkedList<>();
-        }
-        return new ArrayList<>();
-    }
-
-}
-
-```
-此时假设test3函数也要改成LinkedList，我们要将test函数中的List list = ListFactory.createList()改为List list = ListFactory.createList(1);而最初的代码也只是改一行代码：List list = new ArrayList<>()改为List list = new LinkedList<>();在这里使用工厂模式又有多少意义呢？
-
-有人说，工作量上确实不能节省多少，但是工厂模式会更加灵活。比如test1函数需要在运行时随时切换List的实现呢，使用工厂模式后我们只需要增加一个传参就可以轻易实现，比如下面的代码，我可以在界面或配置文件加一个配置参数：
-```
-public void test1(int type) {
-    List list = ListFactory.createList(type); // 实现了List的运行时可配
-    // ...
-}
-```
-这其实是一种偷梁换柱的说法，运行时选择代码分支本身就是if else的天职。任何代码通过增加传参，再加上if else语法都可以轻易实现这种最基本的灵活性。我使用原始代码一样轻松做到：
-```
-public void test1(int type) {
-    // 一样实现了List的运行时可配
-    List list;
-    if (type == 1) {
-        list = new LinkedList<>();
-    } else {
-        list = new ArrayList<>();
-    }
-    // ...
-}
-```
-只是说当这种对运行时可配的需求变多了，比如test2和test3也想这样，此时工厂模式才会有那么一些意义，它相当于把大家都用使用的if else的逻辑抽成了公共代码。但这最终还是回到了ACB转换的讨论上来，我们还是需要这些方法要有一致的变化行为，ACB转换才有意义。
-
-
-所以如果没有下面需求三的限制，工厂模式依然不是我们的必选项，在接到需求二后，我会进一步去了解使用场景：这些使用手机的地方是否具有一致的变化行为。
-
-
-需求三：**这些创建手机确实存在一致的行为**
-
-显而易见，这已经完全符合ACB转换所需的使用场景了。将代码片段3.1.1使用ACB转换，得到如下代码：
-```
-public class A {
-    public void test() {
-        Phone phone = PhoneFactory.createPhone();
-        // ...
-    }
-}
-
-public class PhoneFactory {
-    public static Phone createPhone() {
-        return new ApplePhone();
-    }
-}
-
-public interface Phone {
-    // ...
-}
-
-public class ApplePhone implements Phone {
-    // ...
-}
-```
-
-这也是简单工厂模式最基本的代码模型。
-
-使用简单工厂模式，一般都会满足这三条需求。当然，这些需求并不是指我们当前能明确的需求，它也包含对未来的预期需求。
-
-
-### 3. 思路扩展
-1. 简单工厂模式的核心是将一个对象复杂的创建过程封装起来，给调用者公用。
-这个说法其实不准确，如果是因为创建一个对象的过程比较复杂，而选择抽一个公共方法给所有调用者共用，那我们也完全可以把这段创建逻辑放在ApplePhone的构造方法中，这是一样的效果，完全没有必须上一个简单工厂模式。
-> 把一个对象的**公共初始化逻辑**放在构造方法中肯定是完全合理的，即使这会让ApplePhone的构造函数变得复杂，但这些可以通过再拆解子函数或者转调其他类等手段轻易解决。
-
-试想一个场景，假设ApplePhone的创建过程非常简单，直接new ApplePhone()就好了，无论是现在还是将来，都不会变得复杂，我们大概率应该不会给它抽公共方法，比如简单String常量的创建，我们就不会去使用工厂。但如果我们假设ApplePhone很可能会被其他手机代替，即使他们的创建都非常简单，我们依然会使用工厂模式，本章第二节的代码例子就是如此。
-简单工厂模式，使用BA转换（抽取Phone接口），是为了隔离ApplePhone被替代为其他实现时的影响。而使用ACB转换（增加PhoneFactory的createPhone方法），虽然是抽取了公共方法，但主要不是为了屏蔽复杂的创建过程，仅仅是为了隔离对具体对象创建的直接依赖（在依赖倒置原则一章中有讲过BA转换的一个缺点：它**解决不了依赖一个具体对象的创建问题**），只不过我们可以顺便把复杂的创建逻辑放在这个公共方法中，但这不是简单工厂模式的核心目的。
-
-> 我们有时候会非常在意自己的代码使用的是什么模式，使用的是否标准等等问题，实际毫无必要。比如当我们只有需求二和需求三时，只抽一个公共方法确实就能为我们解决问题，没有必要追究它是不是一个标准的简单工厂。一旦开始套用设计模式，就陷入了对其的错误理解中。
-
-2. 简单工厂的进阶用法
-简单工厂模式使用的是ACB转换，存在一些缺陷：Factory代码中还是有具体对象ApplePhone的创建代码，这导致A还是间接依赖ApplePhone。
-但是大多数场景下，简单工厂模式都是单例，此时我们则可以让Factory和ApplePhone之间进行一次BA转换，可以完美解决依赖ApplePhone的问题。
-```
-public class A {
-    public void test() {
-        Phone phone = PhoneFactory.getPhone();
-        // ...
-    }
-}
-
-public class PhoneFactory {
-    private static Phone INSTANCE;
-
-    public static Phone getPhone() {
-        return INSTANCE;
-    }
-    
-    public static void setInstance(Phone phone) {
-        INSTANCE = phone;
-    }
-}
-
-public interface Phone {
-    // ...
-}
-
-public class ApplePhone implements Phone {
-    // ...
-}
-```
-如果是简单工厂的进化版，即：
-```
-public class A {
-    public void test() {
-        Phone phone = PhoneFactory.getPhone();
-        // ...
-    }
-}
-
-public class PhoneFactory {
-    public static Phone getPhone(int type) {
-        if (type == 1) {
-            return new HWPhone();
-        } else if (type == 2) {
-            return new WindowPhone();
-        } else {
-            return new ApplePhone();
-        }
-    }
-}
-
-public interface Phone {
-    // ...
-}
-
-public class ApplePhone implements Phone {
-    // ...
+    // some code...
 }
 
 public class HWPhone implements Phone {
-    // ...
+    // some code...
 }
 
-public class WindowPhone implements Phone {
-    // ...
+```
+
+不要因为代码片段3.1.5使用了设计模式，就认为这种写法比代码片段3.1.4高明很多，恰恰相反，他不仅没有好多少，反而还多了一个PhoneFactory类。当client想要购买华为手机时，我们还是不得不修改buyPhone函数。
+```
+	Phone phone = PhoneFactory.createPhone(PhoneFactory.APPLE);
+    改为
+	Phone phone = PhoneFactory.createPhone(PhoneFactory.HW);     
+```
+
+大家可以回忆一下自己创建List的代码，一般我们会写成如下：
+```
+List list = new ArrayList();
+或者
+List list = new LinkedList();
+```
+
+创建List的场景和我们当前的例子很像，而且在工作中还使用的非常频繁，那为什么我们没有把创建List封装一个Factory，写成简单工厂的样子：
+```
+List list = ListFactory.createList(1);
+或者
+List list = ListFactory.createList(2);
+
+public class ListFactory {
+	
+    public static List createList(int type) {
+		if (type == 2) {
+			return new LinkedList();
+		} else {
+			return new ArrayList();
+		}
+    }
+
 }
 ```
-经过BA转换则是如下：
+
+因为业务调用者在创建List的时候，是很清楚自己要创建什么类型的List。当业务调用者关注细节或个性时，那么我们的代码应该倾向于易用性，而不是灵活性（见2.5 灵活易用互斥理论）。
+
+试想一下，如果我们平常创建List使用的是简单工厂模式，代码不仅没有变少，该修改的时候也跑不掉，而且我们还需要额外学习这个新的api，要了解不同List的type是多少。而且这个api肯定不会比原生jdk的接口稳定，比如哪天ArrayList的type变成了0，亦或是给createList函数增加了一个int型的参数用于指定长度。
+
+所以，在目前的需求场景下，我们使用了简单工厂其实是有副作用的。我们还需要增加一些场景约束，简单工厂模式才能真正的体现出它的优势。
+
+需求二： **每个客户购买的手机类型并不能提前确定，需要到运行时才能确定**
+如果使用代码描述这个需求，那就是Client变成了大概如下的样子：
+
 ```
-public class A {
-    public void test() {
-        Phone phone = PhoneFactory.getPhone();
-        // ...
+// 代码片段3.1.6
+public class Client {
+
+	public static final int APPLE = 1;
+	
+	public static final int HW = 2;
+	
+    public Phone buyPhone(int type) {
+        // 客户付款
+		// some code ...
+		
+		// 生产一台手机
+		Phone phone;
+		if (type == APPLE) {
+			phone = new ApplePhone();
+		} else {
+			phone = new HWPhone();
+		}
+		
+	    // 手机的激活，开发票等
+        // some code...
+		
+		return phone;
     }
 }
 
+```
+
+如果使用简单工厂，则是如下：
+```
+// 代码片段3.1.7 简单工厂模式
+public class Client {
+    public Phone buyPhone(int type) {
+        // 客户付款
+		// some code ...
+		
+		// 生产一台手机
+		Phone phone = PhoneFactory.createPhone(type);
+		
+	    // 手机的激活，开发票等
+        // some code...
+		
+		return phone;
+    }
+}
+
+public class PhoneFactory {
+
+	public static final int APPLE = 1;
+	
+	public static final int HW = 2;
+	
+    public static Phone createPhone(int type) {
+		if (type == APPLE) {
+			return new ApplePhone();
+		} else {
+			return new HWPhone();
+		}
+    }
+}
+
+```
+
+
+其实现在仍然感觉不到简单工厂模式能起到多大作用，它仅仅是将一段创建逻辑移出去而已，如果仅仅是这样，那我其实完全可以将代码片段3.1.6变成如下即可：
+```
+// 代码片段3.1.8
+public class Client {
+
+	public static final int APPLE = 1;
+	
+	public static final int HW = 2;
+	
+    public Phone buyPhone(int type) {
+        // 客户付款
+		// some code ...
+		
+		// 生产一台手机
+		Phone phone = createPhone(type);
+		
+	    // 手机的激活，开发票等
+        // some code...
+		
+		return phone;
+    }
+	
+    private static Phone createPhone(int type) {
+		if (type == APPLE) {
+			return new ApplePhone();
+		} else {
+			return new HWPhone();
+		}
+    }
+}
+
+```
+
+反正未来无论是修改ApplePhone或者HWPhone的创建逻辑，亦或是增加一种手机类型，这两者并没有太大区别：只是一个修改的Client，一个修改的是PhoneFactory，这两者目前对稳定性的要求也没有区别。
+
+所以我们需要进一步探究简单工厂模式到底给我们带来了什么？
+
+需求三： **有很多个其他Client类也需要使用到手机的创建**
+
+加上需求三，我们就有必要将代码片段3.1.8中createPhone函数独立出去了，此时便形成了我的简单工厂模式的代码原型，即代码片段3.1.7。
+
+### 3. 总结
+从上可以看出，简单工厂的两个作用：
+- 通过一个BA转换，隔离手机类型对Client类的影响：以后增加一个VivoPhone类型，所有的Client类都不需要修改。
+- 通过一个ACB转换，共用了创建手机的代码，一旦创建手机的逻辑发生变更或者是增加手机类型，只需要修改PhoneFactory一处即可。
+
+前者是核心作用；后者为次要作用，任何公共方法的封装都有这种效果。
+
+### 4. 思路扩展
+1. 设计模式是一种思想，而不是代码形态。
+我们回过头来看我们本章最开始提出的那个问题，即代码片段3.1.1是不是一种工厂模式。
+
+答案其实很清晰了，我们并不能因为类名带有Factory后缀就认为你是工厂模式，也不能因为类名不带Factory就不是工厂模式。设计模式应该是一种思想，并不会因为代码的命名改变而改变。
+
+代码片段3.1.1，假设未来增加一种草莓蛋糕，Client类和CakeFactory类都需要修改，它连最基本的变化（增加一种蛋糕类型）都没有隔离，它仅仅是一个工具类方法的提取。
+
+如果将一个对象的创建逻辑封装成公共方法就是工厂模式，那么我们工厂模式可太普遍了，任何一个class的构造方法都可以算是工厂模式，我们完全可以将代码片段3.1.1中CakeFactory的createCake逻辑封装到构造函数中:
+```
+// 代码片段3.1.9
+public class Client {
+    public static void main(String[] args) {
+        
+		// 制作一个蛋糕
+		ChocolateCake cake = new ChocolateCake();
+		
+		// some code...
+    }
+}
+
+public class ChocolateCake {
+
+    public ChocolateCake() {
+		// 蛋糕的一些制作细节，放糖，放奶油等
+		// some code...
+    }
+}
+
+```
+
+代码片段3.1.9并不比代码片段3.1.1差，他们在对抗未来变化时（增加蛋糕类型）的可扩展性都很差。
+
+很多博主会说：**简单工厂模式的核心是将一个对象复杂的创建过程封装起来，给调用者公用**——这是一种普遍的错误理解。
+
+我们完全可以把这段创建逻辑放在构造方法中，或者一个工具函数中，都是一样的效果，完全没有必须上一个工厂模式。因为多么复杂的逻辑，最终都可以封装成一个方法给任何人调用。
+
+工厂模式最核心的用处，是隔离产品类型变更对Client端的影响，这与你的创建逻辑复杂与否毫无关系。我们本章的Client购买手机的例子中，创建ApplePhone和HWPhone的逻辑就很简单，只有一行代码。
+
+2. 如果业务调用方关注的是具体的某个产品，即使产品类型有多种实现的可能，也完全没有必要使用工厂模式。
+这一点其实讲的是需求二，这里有个很典型的例子：
+
+我们的代码中，一般都有成千上万处String，StringBuilder等类的创建，即使如此，我们也不会去使用工厂模式。
+```
+// 代码片段3.1.10
+public class Client {
+    public static void main(String[] args) {
+        
+		// 制作一个字符串类的对象
+		CharSequence cs = CharSequenceFactory.createCharSequence(1, "hello, world");
+		
+		// some code...
+    }
+}
+
+public class CharSequenceFactory {
+
+    public static CharSequence createCharSequence(int type, String s) {
+		// 魔鬼数字是一种不良习惯，切勿模仿
+		if (type == 1) {
+			return new StringBuilder(s);
+		} else if (type == 2) {
+			return new StringBuffer(s);
+		} else {
+			return new String(s);
+		}
+    }
+}
+
+```
+
+不用我解释，如果有架构师要求大家在创建StringBuilder，StringBuffer或者String的时候必须使用高大上的工厂模式，即代码片段3.1.10的样子，一定会有一堆程序猿跳出来骂娘。
+
+所以我希望，各位读者在学习设计模式时，要真正看到模式本身的灵魂所在，它只是某种特殊场景下的某种选择而已。
+
+我们有时候会非常在意自己的代码使用的是什么模式，使用的是否标准等等问题，实际毫无必要。比如当我们只有需求二和需求三而没有需求一时，只抽一个公共方法确实就能为我们解决问题，没有必要追究它是不是一个标准的简单工厂。一旦开始套用设计模式，就陷入了对其的错误理解中。
+
+3. 简单工厂的进阶用法
+简单工厂模式使用的是ACB转换，必然存在一些缺陷：Factory代码中还是有具体对象ApplePhone的创建代码，这导致Client还是间接依赖ApplePhone，HWPhone等具体类型。
+
+举个例子，现在Vivo公司希望我们可以卖vivo手机，所以他们实现了一个VivoPhone，并以jar包的形式提供给了我们。
+
+此时我们的简单工厂代码需要改成如下：
+```
+// 代码片段3.1.11 简单工厂模式
+public class Client {
+    public Phone buyPhone(int type) {
+        // 客户付款
+		// some code ...
+		
+		// 生产一台手机
+		Phone phone = PhoneFactory.createPhone(type);
+		
+	    // 手机的激活，开发票等
+        // some code...
+		
+		return phone;
+    }
+}
+
+public class PhoneFactory {
+
+	public static final int APPLE = 1;
+	
+	public static final int HW = 2;
+	
+	public static final int VIVO = 3;
+	
+    public static Phone createPhone(int type) {
+		if (type == APPLE) {
+			return new ApplePhone();
+		} else (type == VIVO) {
+			return new VivoPhone();
+		} else {
+			return new HWPhone();
+		}
+    }
+}
+
+```
+
+发现没有，一旦新接入一个厂家，我们的代码都需要重新编译打包；而且中间和某个厂家发生了合约问题，比如和vivo公司产生了合同纠纷终止合作，此时为了规避法律风险，我们不能再使用vivo公司提供的jar包，此时也要修改代码重新编译打包。
+
+```
+    public static Phone createPhone(int type) {
+		if (type == APPLE) {
+			return new ApplePhone();
+		} else (type == VIVO) {
+			// 没有了vivo公司提供的jar包，此处会编译报错。
+			return new VivoPhone();
+		} else {
+			return new HWPhone();
+		}
+    }
+```
+
+此时最好的解决方法是使用BA模式中的注册机制，让两个模块依赖反转：我们先将简单工厂模式使用静态类或单例实现，然后让不同类型Phone自己注册进来即可。
+```
+// 代码片段3.1.12 简单工厂模式
 public class PhoneFactory {
     private static Phone INSTANCE1, INSTANCE2, INSTANCE;
     
@@ -416,19 +529,14 @@ public class HWPhone implements Phone {
     // ...
 }
 
-public class WindowPhone implements Phone {
+public class VivoPhone implements Phone {
     // ...
 }
 ```
-很明显，PhoneFactory的getPhone方法非常满足ABs转换的场景：依赖多个具有共同行为的一类对象，而且他们的个数很可能变化。于是通过map进行一次ABs转换：
-```
-public class A {
-    public void test() {
-        Phone phone = PhoneFactory.getPhone();
-        // ...
-    }
-}
 
+此时增加或删除手机类型依然需要修改PhoneFactory的代码，但是我们可以再通过一次ABs的map转换变成如下：
+```
+// 代码片段3.1.13 简单工厂模式
 public class PhoneFactory {
     private static Map<Integer, Phone> map = new HashMap<>();
     
@@ -441,31 +549,17 @@ public class PhoneFactory {
         map.put(type, phone);
     }
 }
-
-public interface Phone {
-    // ...
-}
-
-public class ApplePhone implements Phone {
-    // ...
-}
-
-public class HWPhone implements Phone {
-    // ...
-}
-
-public class WindowPhone implements Phone {
-    // ...
-}
 ```
 
-我们知道，这里面应用了BA转换，把Phone的具体实例化转嫁给了client角色，也就是说，一定有一个可怜的家伙需要负责执行下面这段代码：
+无论如何，这里面应用了BA转换，把Phone的具体实例化转嫁给了业务调用方或某个初始化类，也就是说，一定有一个或多个**可怜的家伙**需要负责执行下面这段代码：
 ```
-PhoneFactory.setInstance(0, new ApplePhone());
-PhoneFactory.setInstance(1, new HWPhone());
-PhoneFactory.setInstance(2, new WindowPhone());
+PhoneFactory.setInstance(1, new ApplePhone());
+PhoneFactory.setInstance(2, new HWPhone());
+PhoneFactory.setInstance(3, new VivoPhone());
 ```
-只要增加一个新的Phone实现或改变映射关系，所有人都可以不动，这里必然会被影响。
+
+只要增加或删除一个新的Phone实现，又或者是改变type和Phone的映射关系，所有人都可以不用修改任何代码，但上面提到的这些**可怜的家伙**必然还是会被影响。
+
 在java语言中，由于“类扫描”的存在，可以解决掉这种问题（类扫描：扫描某个目录或jar包下面所有class）。
 假设我们实现了一个“类扫描”的工具类ClazzUtil，提供了如下一个工具方法：获取当前运行环境中所有实现了接口interfaceClazz的Class对象
 public static <T> List<Class<?>> getAllInterface(Class<T> interfaceClazz)
@@ -473,13 +567,7 @@ public static <T> List<Class<?>> getAllInterface(Class<T> interfaceClazz)
 
 那么我们可以把上面的代码进一步进化：
 ```
-public class A {
-    public void test() {
-        Phone phone = PhoneFactory.getPhone();
-        // ...
-    }
-}
-
+// 代码片段3.1.14 简单工厂模式
 public class PhoneFactory {
     private static Map<Integer, Phone> map = new HashMap<>();
 
@@ -508,7 +596,7 @@ public interface Phone {
 
 public class ApplePhone implements Phone {
     public int getType() {
-        return 0;
+        return 1;
     }
     
     // ...
@@ -516,13 +604,13 @@ public class ApplePhone implements Phone {
 
 public class HWPhone implements Phone {
     public int getType() {
-        return 1;
+        return 2;
     }
     
     // ...
 }
 
-public class WindowPhone implements Phone {
+public class VivoPhone implements Phone {
     public int getType() {
         return 2;
     }
@@ -532,6 +620,9 @@ public class WindowPhone implements Phone {
 ```
 可以看到，我们给Phone增加了一个getType()方法，方便自注册。这样以后再增加一个Phone的实现，只需要增加你自己的类即可，任何其他地方都不需要修改。
 
-当然，这里只是简单示例，实际情况可能会考虑大对象需要懒加载，构造方法需要传参等细节问题，但都是一些单纯的技术问题了，这里不再赘述。
+当然，这里只是简单示例，实际情况可能会考虑大对象的懒加载，构造方法需要传参等细节问题，但都是一些单纯的技术问题了，相信读者们可以自行解决。
 
-> 如果使用了spring，我们则不用实现自己的ClazzUtil.getAllInterface方法了，spring可以通过@Autowired轻松获取到一个接口的所有实例，最终原理与上面类似。
+使用过Spring的依赖注入功能的同学应该很清楚，我们可以不用实现自己的ClazzUtil.getAllInterface方法，spring自带@Autowired注解，可以轻松获取到一个接口的所有实例，最终原理其实与上面类似。
+// TODO 补充代码例子
+
+// TODO 需要增加abs转换
