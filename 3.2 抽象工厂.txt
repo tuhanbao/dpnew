@@ -1,69 +1,260 @@
 ### 1. 原始场景和代码
-抽象工厂是在简单工厂的基础上演变而来的。我们可以将抽象工厂的原始需求定义为：
-我们很多地方需要随时创建一个手机，而且这个手机后面有可能替换为其他类型。
+抽象工厂是在简单工厂的基础上演变而来的，我们可以将抽象工厂的原始需求定义为简单工厂模式的需求场景：
 
-那么我们可以先拷贝简单工厂的代码：
+1. 有个client类负责买手机，为了避免造出来的手机不会浪费，我们必须等客户付款后才能生产手机。
+2. Client角色可能还会买其他种类的手机，比如华为手机。
+3. Client购买的手机类型并不能提前确定，需要到运行时才能确定**
+4. 有很多个其他Client类也需要使用到手机的创建这段逻辑
+
+那么我们的初始代码也可以直接拷贝简单工厂的代码：
 ```
+// 代码片段3.2.1 简单工厂模式
 public class PhoneFactory {
-    public static Phone createPhone() {
-        return new ApplePhone();
+
+	public static final int APPLE = 1;
+	
+	public static final int HW = 2;
+	
+	public static final int VIVO = 3;
+	
+    public static Phone createPhone(int type) {
+		if (type == APPLE) {
+			return new ApplePhone();
+		} else (type == VIVO) {
+			return new VivoPhone();
+		} else {
+			return new HWPhone();
+		}
     }
 }
 
 public interface Phone {
-    // ...
+    // some code...
 }
 
 public class ApplePhone implements Phone {
-    // ...
+    // some code...
 }
+
+public class HWPhone implements Phone {
+    // some code...
+}
+
+public class VivoPhone implements Phone {
+    // some code...
+}
+
 ```
 
 ### 2. 演变过程
 
-需求一：**现在不仅要创建手机，还要创建pad和手表。**
-一个很基本的业务需求，和创建手机一模一样，增加两个方法就可以了。当然，pad和手表肯定也可能有其他种类替换，所以，我们对pad和手表也分别抽取了接口。代码变成了如下：
+需求一：**现在不仅要可以生产手机，每个品牌还需要生产pad和手表。**
+一个很基本的业务需求，和创建手机一模一样，拷贝两次就可以了，代码变成了如下：
 ```
+// 代码片段3.2.2
+
+// 公用的常量抽取一个常量类
+public class Brand {
+	public static final int APPLE = 1;
+	
+	public static final int HW = 2;
+	
+	public static final int VIVO = 3;
+}
+
+// 手机工厂
 public class PhoneFactory {
-    public static Phone createPhone() {
-        return new ApplePhone();
-    }
 	
-    public static Pad createPad() {
-        return new ApplePad();
+    public static Phone createPhone(int type) {
+		if (type == Brand.APPLE) {
+			return new ApplePhone();
+		} else (type == Brand.VIVO) {
+			return new VivoPhone();
+		} else {
+			return new HWPhone();
+		}
     }
-	
-    public static Watch createWatch() {
-        return new AppleWatch();
+}
+
+// pad工厂
+public class PadFactory {
+	public static Pad createPad(int type) {
+        if (type == Brand.APPLE) {
+            return new ApplePad();
+        } else if (type == Brand.VIVO) {
+            return new VivoPad();
+        } else {
+            return new HWPad();
+        }
+    }
+}
+
+// 手表工厂
+public class WatchFactory {	
+    public static Watch createWatch(int type) {
+        if (type == Brand.APPLE) {
+            return new AppleWatch();
+        } else if (type == Brand.VIVO) {
+            return new VivoWatch();
+        } else {
+            return new HWWatch();
+        }
     }
 }
 
 public interface Phone {
-    // ...
+    // some code...
 }
 
 public class ApplePhone implements Phone {
-    // ...
+    // some code...
+}
+
+public class VivoPhone implements Phone {
+    // some code...
+}
+
+public class HWPhone implements Phone {
+    // some code...
 }
 
 public interface Pad {
-    // ...
+    // some code...
 }
 
 public class ApplePad implements Pad {
-    // ...
+    // some code...
+}
+
+public class VivoPad implements Pad {
+    // some code...
+}
+
+public class HWPad implements Pad {
+    // some code...
 }
 
 public interface Watch {
-    // ...
+    // some code...
 }
 
 public class AppleWatch implements Watch {
-    // ...
+    // some code...
+}
+
+public class VivoWatch implements Watch {
+    // some code...
+}
+
+public class HWWatch implements Watch {
+    // some code...
 }
 ```
 
-与简单工厂的代码例子相比，这里只是创建的产品多了一些而已，而创建三个产品还是一个产品并没有本质上的区别。所以这仍然还是一个简单工厂模式。
+当然，我们也可以将三个Factory合并为一个ElectronicsFactory:
+```
+// 代码片段3.2.3
+public class Brand {
+	public static final int APPLE = 1;
+	
+	public static final int HW = 2;
+	
+	public static final int VIVO = 3;
+}
+
+public class ElectronicsFactory {
+	
+    public static Phone createPhone(int type) {
+		if (type == Brand.APPLE) {
+			return new ApplePhone();
+		} else (type == Brand.VIVO) {
+			return new VivoPhone();
+		} else {
+			return new HWPhone();
+		}
+    }
+	
+	public static Pad createPad(int type) {
+        if (type == Brand.APPLE) {
+            return new ApplePad();
+        } else if (type == Brand.VIVO) {
+            return new VivoPad();
+        } else {
+            return new HWPad();
+        }
+    }
+	
+    public static Watch createWatch(int type) {
+        if (type == Brand.APPLE) {
+            return new AppleWatch();
+        } else if (type == Brand.VIVO) {
+            return new VivoWatch();
+        } else {
+            return new HWWatch();
+        }
+    }
+}
+```
+
+与简单工厂的代码例子相比，代码片段3.2.2和代码片段3.2.3只是创建的产品多了一些而已，而创建三个产品还是一个产品并没有本质上的区别。所以这仍然都还是简单工厂模式。
+
+代码片段3.2.2和代码片段3.2.3，本质上都是先按照电子产品的类型（手机，pad和手表）划分为三个类或者三个函数，然后再按照品牌（苹果，华为和vivo）分成三个分支。我们其实也可以先按照品牌分成三个类，再按照电子产品的类型划分成三个函数。
+```
+// 代码片段3.2.4
+public class Brand {
+	public static final int APPLE = 1;
+	
+	public static final int HW = 2;
+	
+	public static final int VIVO = 3;
+}
+
+public class AppleFactory {
+	
+    public static Phone createPhone() {
+		return new ApplePhone();
+    }
+	
+	public static Pad createPad() {
+        return new ApplePad();
+    }
+	
+    public static Watch createWatch() {
+		return new AppleWatch();
+    }
+}
+
+public class HWFactory {
+	
+    public static Phone createPhone() {
+		return new HWPhone();
+    }
+	
+	public static Pad createPad() {
+        return new HWPad();
+    }
+	
+    public static Watch createWatch() {
+		return new HWWatch();
+    }
+}
+
+public class VivoFactory {
+	
+    public static Phone createPhone() {
+		return new VivoPhone();
+    }
+	
+	public static Pad createPad() {
+        return new VivoPad();
+    }
+	
+    public static Watch createWatch() {
+		return new VivoWatch();
+    }
+}
+```
+
 
 需求二：**现在就需要创建华为的手机，pad和手表，具体是生产苹果的还是华为的让调用者有自己选择的权利。**
 
