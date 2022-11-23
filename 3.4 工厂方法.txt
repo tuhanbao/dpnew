@@ -1,7 +1,10 @@
+工厂方法模式并没有什么新意，只是抽象工厂的一个变种。
+
 ### 1. 原始场景和代码
-工厂方法模式并没有什么新意，只是抽象工厂的一个变换而已。
+
 试想一个只有一个产品的抽象工厂例子：
 ```
+// 代码片段3.4.1
 public interface PhoneFactory {
     Phone createPhone();
 }
@@ -20,82 +23,92 @@ public class HWPhoneFactory implements PhoneFactory {
     }
 }
 
+public class VivoPhoneFactory implements PhoneFactory {
+    @Override
+	public Phone createPhone() {
+        return new VivoPhone();
+    }
+}
+
 public interface Phone {
-    // ...
+    // some code...
 }
 
 public class ApplePhone implements Phone {
-    // ...
+    // some code...
 }
 
 public class HWPhone implements Phone {
-    // ...
+    // some code...
+}
+
+public class VivoPhone implements Phone {
+    // some code...
 }
 ```
 
 ### 2. 演变过程
 
-现在有个调用者，要用手机打电话，至于是什么手机无所谓，能给它个手机就行。
-```
-public class CallClient {
-	public void call() {
-		Phone phone = ...; // 获取一个手机
-		// 使用phone开始打电话
-		// ...
-	}
-}
-```
+现在有个调用者，要用手机打电话，至于是什么手机无所谓，能给它个手机就行。而获取手机的代码可以有很多种方式。
 
-获取手机的代码可以有很多种方式：
-1. 给call函数传参
+1. phone通过给call函数传参获得：
 ```
+// 代码片段3.4.2
 public class CallClient {
 	public void call(Phone phone) {
 		// 直接使用phone开始打电话
-		// ...
+		// some code...
 	}
 }
 ```
 
-2. 作为CallClient的一个成员变量，通过构造函数或者setter方法
+2. phone作为CallClient的一个成员变量，通过构造函数或者setter方法传入：
 ```
+// 代码片段3.4.3
 public class CallClient {
+    // 通过构造函数或者setter方法设置
 	private Phone phone;
 	
 	public void call() {
 		// 使用this.phone开始打电话
-		// ...
+		// some code...
 	}
 }
 ```
 
-3. 把PhoneFactory作为传参或者成员变量
+3. 把PhoneFactory作为call函数的参数传入：
 ```
+// 代码片段3.4.4
 public class CallClient {
 	public void call(PhoneFactory phoneFactory) {
 		Phone phone = phoneFactory.createPhone();
 		// 使用phone开始打电话
-		// ...
-	}
-}
-
-或者
-
-public class CallClient {
-	private PhoneFactory phoneFactory;
-	public void call() {
-		Phone phone = this.phoneFactory.createPhone();
-		// 使用phone开始打电话
-		// ...
+		// some code...
 	}
 }
 ```
 
-代码总是存在很多不痛不痒的变换方式，大多跟应用场景相关，并无本质区别。他们都是使用者通过传参来决定最终的phone的创建。
+当然也可以把PhoneFactory作为CallClient的一个成员变量，通过构造函数或者setter方法传入：
+```
+// 代码片段3.4.5
+public class CallClient {
+	// 通过构造函数或者setter方法设置
+	private PhoneFactory phoneFactory;
+	
+	public void call() {
+		Phone phone = this.phoneFactory.createPhone();
+		// 使用phone开始打电话
+		// some code...
+	}
+}
+```
+
+代码总是存在很多不痛不痒的变换方式，大多跟应用场景相关、个人习惯或者是否方便有关，并无本质区别。他们的共同点是：都是使用者通过传参来决定最终的phone的创建。
 
 而工厂方法不一样，他将phone的创建交给了子类，代码如下：
 
 ```
+// 代码片段3.4.6
 public abstract class CallClient {
 	public void call() {
 		Phone phone = createPhone();
@@ -106,26 +119,43 @@ public abstract class CallClient {
 	protected abstract Phone createPhone();
 }
 ```
+
 我想大概率子类会是这样：
+
 ```
+// 代码片段3.4.7
 public class AppleCallClient extends CallClient {
 	@Override
 	protected Phone createPhone() {
-		return new ApplePhone(); // 如果创建过程复杂，可以转调其他工具方法
+		Phone phone = new ApplePhone();
+		// some code...
+		return phone;
 	}
 }
-
 
 public class HWCallClient extends CallClient {
 	@Override
 	protected Phone createPhone() {
-		return new HWPhone(); // 如果创建过程复杂，可以转调其他工具方法
+		Phone phone = new HWPhone();
+		// some code...
+		return phone;
+	}
+}
+
+public class VivoCallClient extends CallClient {
+	@Override
+	protected Phone createPhone() {
+		Phone phone = new VivoPhone();
+		// some code...
+		return phone;
 	}
 }
 ```
 
-但肯定不会是这样
+但肯定不会是这样:
+
 ```
+// 代码片段3.4.8
 public class CallClientImpl extends CallClient {
 	private PhoneFactory phoneFactory;
 	
@@ -140,21 +170,25 @@ public class CallClientImpl extends CallClient {
 	}
 }
 ```
-上面这种方式功能不会有问题，但是因为PhoneFactory已经对phone的创建做了抽象，CallClient除了CallClientImpl应该注定不会再有其他子类了，这是一种毫无意义的继承关系。
+上面这种方式功能不会有问题，但是CallClient除了CallClientImpl应该注定不会再有其他子类了，这是一种毫无意义的继承关系；和代码片段3.4.5相比简直是脱裤子放屁。
 
-我实在是很难想象出一种场景，让工厂方法模式明显优于前面那些传参的方式，大多数情况他们都是个人选择的问题。
-如果非要给个说法，那么就是：
+我实在是很难想象出一种场景，让工厂方法模式明显优于前面四种方式（代码片段3.4.2、代码片段3.4.3、代码片段3.4.4、代码片段3.4.5），明显前面四种方式更好：他们都讲将产品的创建和使用进行了分离。
 
-需求一：**只有一个使用者**
-假使PhoneFactory只有CallClient这一个使用的地方，我们如果使用了工厂方法模式，PhoneFactory子类的逻辑则移到了CallClient的子类中，最终我们会节省一个PhoneFactory的接口定义，代码要略微简洁一些。
+如果非要找一个说法，那就是以下这个场景：
+
+需求一：**创建产品是当前类的一个行为**
+假使只有CallClient的子类会使用到Phone的创建，此时如果我们使用了工厂方法模式，抽象工厂中PhoneFactory的子类的逻辑则移到了CallClient的子类中，PhoneFactory也没有了存在的必要，节省了一个接口定义，代码要略微简洁一些。
+简单来说，即把PhoneFactory和其调用者合二为一了。
+
+还不如说，他是一个带有其他功能的抽象工厂；
 
 // TODO 看不懂，需要上点代码
 
+
 ### 3. 思路扩展
 
-工厂方法虽然没有明显的优势，但在某些情况下至少是一种选择。
-
 极端点说，我并不认为工厂方法需要单独罗列出来自立门户，他只是模板方法模式在创建对象这种应用场景下的一种表现形式。
-如果非要说它就是一种模式，那也是一个重复的模式。
+只要将模板模式中下放给子类的抽象方法改为形如**public abstract Product createProduct()**的样子，会发现两者一模一样，毫无区别。
+
 
 
