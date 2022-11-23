@@ -1,7 +1,10 @@
+生成器模式是所有设计模式中被小看以及被误解最为严重的模式，没有之一。
+
 ### 1. 原始场景和代码
 假设我们现在有个场景，需要拿一些木头零件拼一个机器人，这个机器人比较简单，只需要一个头，一个身子和两只手，然后拿钉子把他们拼到一起就好了。
 
 ```
+// 代码片段3.3.1
 public class RobotFactory {
     public static Robot createRobot() {
 		Robot robot = new Robot();
@@ -22,24 +25,24 @@ public class Robot {
 	}
 	
 	public void setHead(Head head) {
-		// ...
+		// some code...
 	}
 	
 	public void setBody(Body body) {
-		// ...
+		// some code...
 	}
 	
 	public void setLeftHand(Hand hand) {
-		// ...
+		// some code...
 	}
 	
 	public void setRightHand(Hand hand) {
-		// ...
+		// some code...
 	}
 	
 	public void splice() {
 		// 拿钉子组装到一起
-		// ...
+		// some code...
 	}
 }
 
@@ -48,11 +51,12 @@ public class Robot {
 
 ### 2. 演变过程
 
-需求一： **现在只能拼接木头机器人，未来很可能要拼接铁块机器人或者塑料机器人，他们需要的部件不变，都是一个头，一个身子和两只手，但是组装方式不一样，铁块机器人需要拿螺丝拧到一起，塑料机器人则需要用火烧了贴在一块。最好能保持扩展性，能让调用者可以自己选择创建什么类型的机器人**
+需求一： **现在只能拼接木头机器人，未来很可能要拼接铁块机器人或者塑料机器人，他们需要的部件不变，都是一个头，一个身子和两只手，但是组装方式不一样，铁块机器人需要拿螺丝拧到一起，塑料机器人则需要高温融化后贴在一块。最好能保持扩展性，能让调用者可以自己选择创建什么类型的机器人**
 
-这种需求我们已经在前面两章讨论过，我们即可以使用抽象工厂，也可以使用简单工厂：
-抽象工厂:
+经过前面的学习，我们知道即可以使用抽象工厂，也可以使用简单工厂：
+
 ```
+// 代码片段3.3.2 抽象工厂
 public interface Robot {
 	void setHead(Head head);
 	
@@ -99,11 +103,11 @@ public class IronRobotFactory implements RobotFactory {
 }
 
 public class WoodRobot implements Robot {
-	// 实现Robot...
+	// some code...
 }
 
 public class IronRobot implements Robot {
-	// 实现Robot...
+	// some code...
 }
 
 public interface Head {
@@ -111,11 +115,11 @@ public interface Head {
 
 
 public WoodHead implements Head {
-	// ...
+	// some code...
 }
 
 public IronHead implements Head {
-	// ...
+	// some code...
 }
 
 public interface Body {
@@ -123,11 +127,11 @@ public interface Body {
 
 
 public WoodBody implements Body {
-	// ...
+	// some code...
 }
 
 public IronBody implements Body {
-	// ...
+	// some code...
 }
 
 public interface Hand {
@@ -135,20 +139,20 @@ public interface Hand {
 
 
 public WoodHand implements Hand {
-	// ...
+	// some code...
 }
 
 public IronHand implements Hand {
-	// ...
+	// some code...
 }
 
 ```
 
-简单工厂:
 ```
+// 代码片段3.3.3 简单工厂
 public class RobotFactory {
     public static Robot createRobot(int material) {
-		Robot robot = null;
+		Robot robot;
 		if (material == 1) {
 			robot = new WoodRobot();
 			robot.setHead(new WoodHead());
@@ -168,6 +172,7 @@ public class RobotFactory {
 }
 
 // 其他代码同抽象工厂
+// some code...
 
 ```
 
@@ -206,24 +211,24 @@ public IronLeg implements Leg {
 ```
 
 然后再先简单粗暴的实现几种拼接方式试试，比如先实现不要身体和加两只腿的情况：
-抽象工厂参数化形式：
 ```
+// 代码片段3.3.4 抽象工厂的基础上增加拼接方式——if else处理
 public interface RobotFactory {
 	/**
-	 * robotType: 1：不要身体和腿的机器人  2. 只有头，身体和两只手的机器人， 0（默认情况）： 全都有的情况
+	 * buildType: 1：不要身体和腿的机器人  2. 只有头，身体和两只手的机器人， 0（默认情况）： 一个头，一个身体，两只手和两只脚
 	 */
-	Robot createRobot(int robotType);
+	Robot createRobot(int buildType);
 }
 
 public class WoodRobotFactory implements RobotFactory {
 	@Override
-    public Robot createRobot(int robotType) {
+    public Robot createRobot(int buildType) {
 		Robot robot = new WoodRobot();
-		if (robotType == 1) {
+		if (buildType == 1) {
 			robot.setHead(new WoodHead());
 			robot.setLeftHand(new WoodHand());
 			robot.setRightHand(new WoodHand());
-		} else if (robotType == 2) {
+		} else if (buildType == 2) {
 			robot.setHead(new WoodHead());
 			robot.setBody(new WoodBody());
 			robot.setLeftHand(new WoodHand());
@@ -243,13 +248,13 @@ public class WoodRobotFactory implements RobotFactory {
 
 public class IronRobotFactory implements RobotFactory {
 	@Override
-    public Robot createRobot(int robotType) {
+    public Robot createRobot(int buildType) {
 		Robot robot = new IronRobot();
-		if (robotType == 1) {
+		if (buildType == 1) {
 			robot.setHead(new IronHead());
 			robot.setLeftHand(new IronHand());
 			robot.setRightHand(new IronHand());
-		} else if (robotType == 2) {
+		} else if (buildType == 2) {
 			robot.setHead(new IronHead());
 			robot.setBody(new IronBody());
 			robot.setLeftHand(new IronHand());
@@ -268,9 +273,10 @@ public class IronRobotFactory implements RobotFactory {
 }
 ```
 
-当然也可以反参数化，将if分支分成三个方法或者三个类。
+当然也可以将if分支分成三个方法或者三个类。
 抽象工厂反参数化形式一，分成多个方法：
 ```
+// 代码片段3.3.5 抽象工厂的基础上增加拼接方式——三个函数
 public interface RobotFactory {
 	/**
 	 * 不要身体和腿的机器人  
@@ -325,12 +331,14 @@ public class WoodRobotFactory implements RobotFactory {
 }
 
 public class IronRobotFactory implements RobotFactory {
-	// .. 与上雷同
+	// 处理方式与WoodRobotFactory雷同
+	// some code...
 }
 ```
 
 抽象工厂反参数化形式二，分成多个类：
 ```
+// 代码片段3.3.6 抽象工厂的基础上增加拼接方式——三个类
 public interface RobotFactory {
 	Robot createRobot();
 }
@@ -376,23 +384,29 @@ public class WoodRobotFactory0 implements RobotFactory {
 }
 
 public class IronRobotFactory1 implements RobotFactory {
-	// 与上雷同
+	// 处理方式与WoodRobotFactory1雷同
+	// some code...
 }
 
 public class IronRobotFactory2 implements RobotFactory {
-	// 与上雷同
+	// 处理方式与WoodRobotFactory2雷同
+	// some code...
 }
 
 public class IronRobotFactory0 implements RobotFactory {
-	// 与上雷同
+	// 处理方式与WoodRobotFactory0雷同
+	// some code...
 }
 ```
 
-我们发现这个需求如果这样无脑做下去，会复杂无比，假使有5种不同材料的机器人，6种拼接方式，我们发现我们要写30个类；要不就是5个类，每个类6个方法；再或者5个类，每个类一个方法但有6个if分支。使用简单工厂一样不会好过，要么一个方法30个if分支，要么5个方法，每个方法6个分支，他们的复杂度是等价的。
+我们发现这个需求如果这样无脑做下去，会复杂无比，假使有5种不同材料的机器人，6种拼接方式，我们发现我们要写5个类，每个类一个函数但有6个if分支（代码片段3.3.4）；要么写5个类，每个类6个函数（代码片段3.3.5）；要么就写30个类，每个类1个函数（代码片段3.3.6）。使用简单工厂一样不会好过，要么一个方法30个if分支；要么5个方法，每个方法6个分支，它们的复杂度和代码量都是等价的。后续需求发生变动，增加一种材料或者增加一种拼接方式，修改代价虽然存在区别但是可以忽略，每种方式都比较难以让人接受。
 
-很显然，这里的两个变化因子，一个是材料，一个是拼接方式，需要将这两者进行**抽象参数化**分离。这里以反参数化形式二的代码举例，会变成如下：
+很显然，这里的三个变化因子，一个是材料，一个是拼接方式，还有一个身体的部件。目前看来，身体的部件比较稳定，未来扩展的可能性较小，可以暂不考虑。至于材料和拼接方式，我们需要想一些办法将两者进行分离。
+
+仔细观察的话，不同材料机器人的同一种拼接方式的函数是雷同的，不同的点只是部件不同而已，我们可以将这些个性剥离出去，从而共用他们的创建逻辑。这样处理后代码会变成如下：
 
 ```
+// 代码片段3.3.7
 // 负责生产不同材料的部件
 public interface RobotFactory {
 	Robot createRobot();
@@ -491,31 +505,29 @@ public class IronRobotFactory implements RobotFactory {
 	}
 }
 
-// 其他略
 ```
 
-这样一下简洁了很多，添加一种材料的机器人，只需要实现一个RobotFactory即可，增加一种拼接方式，则增加一种RobotDirector即可。至于抽象工厂的参数化模式，反参数化形式一，以及简单工厂模式都可以通过这种解耦让代码变得简单。
+这样一下简洁了很多：添加一种材料的机器人，只需要实现一个RobotFactory即可；增加一种拼接方式，则增加一种RobotDirector即可。无论是抽象工厂还是简单工厂，我们都可以通过这种思路让代码变得简单，具体的代码不再罗列。
 
 
 需求三：**产品的组装形式是千变万化的，甚至需要动态配置**
-即使我们已经将拼接方式和不同材料组件的生成进行了解耦，我们依然无法实现这条变态需求，一千种拼接方式，我们必须实现一千个RobotDirector，如果是其他形式的代码，则是实现一千个方法，或者是一千个if分支。
-拼接方式已经是一个很独立的因子了，而且我们也不太能想到能将它拆解到更小因子的方法。
+即使我们已经将拼接方式和不同材料组件的生成进行了解耦，我们依然无法实现这条变态需求，一千种拼接方式，如果是抽象工厂模式，我们必须实现一千个RobotDirector类，如果是简单工厂模式，我们则必须实现一千个方法，亦或是一千个if else分支。
 
-在实际工作中我们常常会碰到类似的问题，总是会有一堆雷同但又不同的事务，繁多又不知该如何合并。此时如果我们不能抽象出其本质，找到这些雷同事务的共同点，那么我们能做的就是不断重复。五个项目便写五个工程，五段逻辑就写五个函数，即使通过参数化合起来那也是五个if分支（参考《2.6 参数化与反参数化》）。
+在实际工作中我们常常也会碰到这种类似的问题，总是会有一堆雷同但又不同的事务，繁多又不知该如何合并。此时如果我们不能抽象出其本质，找到这些雷同事务的共同点，那么我们能做的就是不断重复：五个项目便写五个工程，五段逻辑就写五个函数，要不就是五个if分支。
 
-回到需求三本身，如果我们识别不了这一千种拼接方式共同的本质，最终的代码就是一千个类，一千个函数或者一千个if分支。
+回到当前的例子，拼接方式已经是一个很独立的变化因子，而且我们也不太能想到能将它拆解到更小粒度的其他思路。如果我们剥离不了这一千种拼接方式的个性，最终的代码就是一千个类，一千个函数或者一千个if分支。
 
-我们知道，解决这中函数、类或逻辑分支过分膨胀的问题需要靠参数化，我们按照之前提过的参数化方法来尝试一下：
-我这里有一些基本步骤，可以作为新手如何进行有效参数化的基础指导，最终的实际效果可能会因人而异：
-1. 挑选足够多的当前场景和未来可能发生的场景，尽量将他们以相似而且一致的方式描述出来：
+解决这个问题的最好方法是，通过抽象，剥离这些事务的个性，保留共性；最终将这些千变万化的个性转移到业务调用处、客户界面或者配置文件等靠前的模块中。
+
+关于剥离个性的方法，笔者尝试罗列了一些可执行的基本步骤，这些步骤可以作为新手的基础指导，但对于高手可能反而又过于复杂，读者们自行参考：
+1. 挑选足够多具有代表性的场景和未来可能发生的场景，尽量将他们以相似而且一致的方式描述出来：
 2. 挑选两个场景，识别两者的个性（即不同之处，或变化因子）：
-如果个性就是场景本身（所有的地方都不一样，完全没有相同之处），那么试着寻找一种更好的方式重新描述这些场景并重新开始。如果始终找不到相同点，那么我们可以做一些选择：
+如果两者没有任何共性（所有的地方都不一样，完全没有相同之处），那么试着寻找一种更好的方式重新描述这些场景并重新开始。如果始终找不到相同点，那么我们可以做一些选择：
 - 放弃抽象：试着考虑是否有抽象的必要
 - 进行顶级抽象：java中对象的顶级抽象是Object，行为的顶级抽象是类似于action，call，run等之类的函数
-3. 试着将这些个性抽象为同一个概念，新的概念应该尽可能的刚好只能囊括这两个场景且不会包含更多额外的东西；
-4. 使用这些新的概念重新描述之前的两个场景，让它们合二为一，然后使用新的场景描述替换之前的两种场景。
-5. 回到第2步不断迭代，直至只有一个场景。
-6. 最终产生的那些新的概念，便是我们想要的抽象，将其作为参数剥离出去即可。
+3. 试着将这些个性抽象为同一个概念，新的概念应该尽可能的刚好只能囊括这两个场景且不会包含更多额外的东西；使用这些新的概念重新描述之前的两个场景，让它们合二为一，然后使用新的场景描述替换之前的两种场景。
+4. 回到第2步不断迭代，直至只有一个场景。
+5. 最终产生的那些新的概念，便是我们想要的抽象，将其作为参数剥离出去即可。
 
 1. 挑选足够多的当前场景和未来可能发生的场景，尽量将他们以相似而且一致的方式描述出来：
 场景一：拼接一个脑袋，一个身体，两条腿的机器人；
@@ -523,13 +535,13 @@ public class IronRobotFactory implements RobotFactory {
 场景三：拼接一个脑袋，一个身体，两只手，两条腿的机器人；
 场景四：拼接只有一只手的机器人；
 场景五：啥都不要的机器人；
-场景六：
 
 2. 挑选两个场景，识别两者的个性（即不同之处，或变化因子）：
 场景一和场景二不同的地方，是一个要身体，一个不要身体。
 
 3. 试着将这些个性抽象为同一个概念或同一种说法，可以使用这些新的概念或说法重新描述之前的两个场景，让它们合二为一，然后使用新的场景描述替换之前的两种场景：
-我们可以把场景一和二合并成如下：拼接一个脑袋，两条腿，身体可有可无的机器人；
+我们可以把场景一和二合并成如下：
+场景一（合）：拼接一个脑袋，两条腿，身体可有可无的机器人；
 场景三：拼接一个脑袋，一个身体，两只手，两条腿；
 场景四：拼接一只手；
 场景五：啥都不要；
@@ -537,12 +549,13 @@ public class IronRobotFactory implements RobotFactory {
 
 4. 回到第2步不断迭代，直至只有一个场景：
 最终的场景会类似这样：
-场景（final）：拼接一个脑袋可有可无，左手可有可无，右手可有可无，body可有可无，左腿可有可无，右腿可有可无的机器人；
+场景（合）：拼接一个脑袋可有可无，左手可有可无，右手可有可无，body可有可无，左腿可有可无，右腿可有可无的机器人；
 
 5. 最终产生的那些新的概念，便是我们想要的抽象，将其作为参数剥离出去即可：
 按照第4步最终形成的结果，我们把这些“可有可无”剥离出去，最终只需要一个类一个方法就可以搞定了。所以我们可以删掉RobotDirector这个接口，实现一个工具方法即可：
 
 ```
+// 代码片段3.3.8
 public class RobotDirector {
     public static Robot assembleRobot(RobotFactory robotFactory, boolean hasHead, boolean hasBody, boolean hasLeftHand, boolean hasRightHand, boolean hasLeftLeg, boolean hasRightLeg) {
 		Robot robot = robotFactory.createRobot();
@@ -569,12 +582,13 @@ public class RobotDirector {
 	}
 }
 ```
-这种写法看起来不太高明，但已经可以实际解决我们的问题了：无论多少种拼接方式，都转移给了调用者，而且不会太复杂。
+这种写法看起来不太高明，但已经可以实际解决我们的问题了：无论多少种拼接方式，都转移给了业务调用者，而且不会太复杂。
 
 有经验的程序员则会抽象的更加贴切，比如：
-场景（final)：创建一个包含若干组件的机器人。
+场景（合)：创建一个包含若干组件的机器人。
 
 ```
+// 代码片段3.3.9
 public class RobotDirector {
 	// 我们使用1代表head，2代表body，3代表左右，4代表右手，5代表左腿，6代表右腿
     public static Robot assembleRobot(RobotFactory robotFactory, List<Integer> comps) {
@@ -606,18 +620,17 @@ public class RobotDirector {
 
 ```
 
-后面这种方式，扩展性明显会更好。比如哪天我们又给机器人增加了翅膀：
+代码片段3.3.9这种方式，扩展性明显会更好。比如哪天我们又给机器人增加了翅膀：
 前者需要在assembleRobot方法头中添加两个参数：hasLeftWing, hasRightWing，方法体再添加两个if分支。
 后者则需要在createComp方法中增加两个if分支
-从代码量上来说，两者似乎区别不大。但实际上两者有非常本质的区别：
+从代码量上来说，两者似乎区别不大。但从改动影响来说却有很大区别：
+- 前者需要改动assembleRobot函数，后者只需要修改createComp函数，前者对历史代码的影响范围更大；
+- 前者需要修改函数接口（加了两个参数），对以前的业务调用者存在影响（尽管我们可以通过重载函数解决这个问题，但考虑历史代码的兼容性本身就是工作量）；
 
-前面的实现方式是调用者耦合了多个boolean参数，一旦增加翅膀部件，所有调用者则必须更改。
-后面的实现方式则通过一个List对象直接让调用者与assembleRobot函数进行了解耦，以后增加部件，原有的调用者完全不用改代码，有需要使用新部件的调用者，自行增加配置即可。
-// TODO 可以通过重写解决吧？
 
 回想一下ABs转换：当A依赖多个B的时候，避免B的数量增加对其影响，也是通过一个List进行的封装。
-ABs转换与上面例子的理念几乎一模一样，当我们对一些很平常的设计手段进行深入思考，会发现它们最终的本质竟然相通，都会不约而同的走向同一个归宿：抽象。
 
+对多个相同事务的数量或者映射关系的抽象最终体现就是一个集合，比如List或Map。ABs转换与上面例子的理念几乎一模一样，当我们对一些很平常的设计手段进行深入思考，会发现它们最终的本质竟然相通，都会不约而同的走向同一个归宿：抽象。
 
 ### 3. 思路扩展
 1. 标准的生成器模式并非如此。
@@ -626,8 +639,9 @@ ABs转换与上面例子的理念几乎一模一样，当我们对一些很平�
 // https://image.baidu.com/search/detail?ct=503316480&z=0&ipn=d&word=%E7%94%9F%E6%88%90%E5%99%A8%E6%A8%A1%E5%BC%8F&step_word=&hs=0&pn=3&spn=0&di=7060663421280190465&pi=0&rn=1&tn=baiduimagedetail&is=0%2C0&istype=0&ie=utf-8&oe=utf-8&in=&cl=2&lm=-1&st=undefined&cs=1727137007%2C1742530519&os=1311759702%2C573506515&simid=3318508677%2C58959274&adpicid=0&lpn=0&ln=1457&fr=&fmq=1648179023859_R&fm=&ic=undefined&s=undefined&hd=undefined&latest=undefined&copyright=undefined&se=&sme=&tab=0&width=undefined&height=undefined&face=undefined&ist=&jit=&cg=&bdtype=0&oriquery=&objurl=https%3A%2F%2Fgimg2.baidu.com%2Fimage_search%2Fsrc%3Dhttp%3A%2F%2Fp-blog.csdn.net%2Fimages%2Fp_blog_csdn_net%2Fldblog%2FEntryImages%2F20080828%2FUML_Builder.GIF%26refer%3Dhttp%3A%2F%2Fp-blog.csdn.net%26app%3D2002%26size%3Df9999%2C10000%26q%3Da80%26n%3D0%26g%3D0n%26fmt%3Dauto%3Fsec%3D1650771027%26t%3D0edd1e7e6cc381f0e4e70e222f22f825&fromurl=ippr_z2C%24qAzdH3FAzdH3Fks52_z%26e3Bvf1g_z%26e3BgjpAzdH3Fs1ks52AzdH3Fw6ptvsjAzdH3F1jpwtsfAzdH3Fdb9ccl8&gsm=4&rpstart=0&rpnum=0&islist=&querylist=&nojc=undefined&dyTabStr=MCwzLDQsMiw2LDEsNSw3LDgsOQ%3D%3D
 
 GoF《23种设计模式》原文中的生成器模式和本文所讲的生成器模式最终的代码模型其实有所区别，主要体现为，前者将product的组装和部件的拼接都放在了Builder中，而后者组装和拼接放在了director中。
-如果按照标准的生成器模式来硬套代码，我们需要把robot.setBody(robotFactory.createBody())这种代码移到RobotFactory中，而且robot.splice方法也要转移到RobotFactory中。最后将RobotFactory改名为RobotBuilder即可：
+如果按照标准的生成器模式来硬套代码，我们需要把robot.setBody(robotFactory.createBody())这种代码移到RobotFactory中，而且robot.splice方法也要转移到RobotFactory中，最后将RobotFactory改名为RobotBuilder即可。具体代码如下：
 ```
+// 代码片段3.3.10
 public class RobotDirector {
 	// 我们使用1代表head，2代表body，3代表左右，4代表右手，5代表左腿，6代表右腿
     public static Robot assembleRobot(RobotBuilder robotBuilder, List<Integer> comps) {
@@ -678,49 +692,49 @@ public class WoodRobotBuilder implements RobotBuilder {
 	public void buildHead() {
 		this.head = new WoodHead();
 		// 可能会存在一些自定义处理
-		// ...
+		// some code...
 	}
 	
 	@Override
 	public void buildBody() {
 		this.body = new WoodBody();
 		// 可能会存在一些自定义处理
-		// ...
+		// some code...
 	}
 	
 	@Override
 	public void buildLeftHand() {
 		this.leftHand = new WoodHand();
 		// 可能会存在一些自定义处理
-		// ...
+		// some code...
 	}
 	
 	@Override
 	public void buildRightHand() {
 		this.rightHand = new WoodHand();
 		// 可能会存在一些自定义处理
-		// ...
+		// some code...
 	}
 	
 	@Override
 	public void buildLeftLeg() {
 		this.leftLeg = new WoodLeg();
 		// 可能会存在一些自定义处理
-		// ...
+		// some code...
 	}
 	
 	@Override
 	public void buildRightLeg() {
 		this.rightLeg = new WoodLeg();
 		// 可能会存在一些自定义处理
-		// ...
+		// some code...
 	}
 	
 	@Override
 	public Robot build() {
 		Robot robot = new WoodRobot();
 		// splice逻辑
-		// ...
+		// some code...
 		return robot;
 	}
 }
@@ -729,22 +743,25 @@ public class WoodRobotBuilder implements RobotBuilder {
 
 public class IronRobotBuilder implements RobotBuilder {
 	// 与WoodRobotBuilder雷同
+	// some code...
 }
 
-// 其他略
+// 其他雷同代码暂略
+// some code...
 ```
 
 从代码可以看出，标准的生成器模式和本文推演出的生成器模式没有太大差别，两者本质是应用场景上的区别：
 前者的重心是将product的组成与拼装方式解耦，但不关心机器人的材料；
 后者的重心是将product的组成与材料（实例化）解耦，而拼接方式它认为与材料是绑定的（木头机器人只用钉子），所以将splice方法直接放到robot中。
-两者的设计手段和理念是一模一样的，差别只是需求不同而已。
+两者的设计手段和理念是一模一样的，差别只是所举例子的业务场景不同而已。
 
 
 2. 生成器模式的核心？
 笔者参考过网上许多关于builder模式的文章，理解各不相同，有些甚至偏差甚远。
-而这些错误的理解都存在一个共同点，就是极力把自己的代码写的和builder模式一样，仿佛只要代码命名带了Builder后缀，写出来的就一定是builder模式了。
-比如
+
+而这些错误的理解都存在一个共同点，就是极力把自己的代码写的和builder模式一样，仿佛只要代码命名带了Builder后缀，写出来的就一定是builder模式了。比如：
 ```
+// 代码片段3.3.11
 public class Computer {
     private final String cpu;
     private final String ram;
@@ -793,8 +810,12 @@ public class ComputerBuilder{
 }
 
 ```
-于是在创建一个Computer时，可以写成：Computer computer = new ComputerBuilder().setCpu("因特尔").setRam("三星").setDisplay("三星24寸").setKeyboard("罗技").build();
-好像确实有builder模式的神韵。
+
+上面的代码在创建一个Computer时，可以写成：Computer computer = new ComputerBuilder().setCpu("因特尔").setRam("三星").setDisplay("三星24寸").setKeyboard("罗技").build();
+
+好像确实有builder模式的神韵!
+
+// TODO 公司的这里有改动，合并即可
 但实际上这种套用代码的方式毫无实际意义。我们在设计时费尽心力引入一个中间类，往往都是为了隔离某种变化（不然，我们多写这些代码岂不是冤枉）。而上面例子，Computer甚至都没有继承一个接口，又哪有变化的可能性，我们完全可以通过一些return this的setter方法就可以搞定。
 ```
 public class Computer {
@@ -834,12 +855,13 @@ Computer computer = new Computer().setCpu("因特尔").setRam("三星").setDispl
 
 笔者认为，生成器模式的两个核心分别是：
 **两个变化因子的分离**
-生成器模式将产品的组成和拼装拆成了完全解耦的两块：Director和Builder，这种解耦两个变化因子的思想在任何地方都是可以借鉴的。
+生成器模式将产品的组成和拼装拆成了完全解耦的两块：Director和Builder，这种隔离两个变化因子（单一职责原则）的思想在任何地方都是可以借鉴的。
 
-**对于千变万化的组成方式，director使用了抽象参数化的方式，仅使用了一个类和一个简洁的函数。**
-标准的生成器模式中我们可以看到Director就是一个具体类，并非接口。这种通过抽象进行参数化的方式往往能节省大量代码，甚至实现一些不可能实现的功能。
+**对于千变万化的组成方式，director使用了抽象参数化的方式：仅使用了一个类和一个简洁的函数。**
+标准的生成器模式中我们可以看到Director就是一个具体类，并非接口。这种通过抽象剥离个性的方式往往能节省大量代码，甚至实现一些不可能实现的功能。
 
 3. 我们平常见到的builder模式例子，都不是builder模式：
+这是一个很让人很不可思议的结论，但你如果看过GoF的设计模式原著，事实确实如此：
 ```
 // pool的一些初始化
 HttpClientConnectionManager pool = new PoolingHttpClientConnectionManager(...);
@@ -857,8 +879,6 @@ CloseableHttpClient httpClient = HttpClients.custom()
 当然，我并不是说没有用生成器模式的代码就不是好代码，上面的两个例子本身没有使用生成器模式的必要，如果使用了生成器模式反而会更糟糕。
 而且，我们完全没有必要为了追寻某种模式，而刻意修改我们的代码，这样只会得不偿失。
 
-
-
 4. 变化在哪里，抽象便在哪里。
 想找出一个生成器模式的标准例子，其实相当困难，实际工作中很难有这么巧合的事情，我们需要满足多个条件：
 - 他的产品是多样化的：product是一个接口
@@ -866,12 +886,11 @@ CloseableHttpClient httpClient = HttpClients.custom()
 - 他们的创建过程是多样化的：builder是一个接口，不同的builder实现便是一种创建过程
 - 他们的组成也是多样化的：Director是一个通过传参自定义创建组件的类。
 
-观察这些条件，我们会发现一个共性：**变化在哪里，抽象便在哪里**。
+观察这些条件以及我们的处理方式，会发现一个共性：**变化在哪里，抽象便在哪里**。
 - product是可变的，有多种实现，所以我们抽象了product接口；
 - 创建过程是多样化的，所以我们抽象了builder接口；
-- 组成方式是多样化，所以我们抽象了一个参数化的方法（Director创建product的方法）；
+- 组成方式是多样化，所以我们抽象了一个comps参数（代码片段3.3.9的assembleRobot函数的入参）；
 
-在所有的设计模式中，这句话都非常有效。当我们发现一个容易发生变化的事务，为了避免其改动影响到使用者，就必须剥离这一类事务的个性。
-生搬硬套设计模式不值得追寻，但这句话值得！
+在大部分的设计模式中，都是在预估变化因子，并试图隔离这些变化：当我们发现一个容易发生变化的因子，为了避免未来其改动影响到其他软件单元，就必须将其抽象并剥离出去。
 
 
