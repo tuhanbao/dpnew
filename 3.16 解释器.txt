@@ -1,0 +1,288 @@
+### 1. 原始场景和代码
+现在有一道编程题：
+题目在最开始会给出一些boolean型变量的定义，并要求根据这些定义求出指定字符串的值。
+比如，我们定义：
+a=true
+b=false
+请计算((a && b) || true) && (!b || !a)的值
+
+其他说明：
+不用考虑变量定义的合法性：变量名不会出现特殊字符，也不会为'true'和'false'这两个关键字。
+表达式只会出现已定义的变量，以及true和false两个常量；操作符只存在括号、"||"、"&&"和"!"四种。
+其中，括号的优先级最高，其次是非运算符"!"，剩下的"||"和"&&"优先级相同，按照从左到右计算即可。
+不用考虑性能。
+
+### 2. 演变过程
+解释器模式的最终需求就是原始需求，只要能计算出给定的字符串表达式的结果即可。
+而其演变过程我思考了很久：没有！
+好像为了解决这种类似的问题，只能像组合模式那样：通过BA转换对局部和整体进行统一抽象。
+不管多长的字符串，对我而言都是一个表达式，它只是再由若干个子表达式组成而已，而子表达式再由其他更小的表达式组成。代码如下：
+```
+// 代码片段3.16.1
+public interface Exp {
+    boolean interept();
+}
+
+// 变量表达式
+public class VarExp implements Exp {
+    private static Map<String, Boolean> cache = new HashMap<>();
+
+    private String varName;
+
+    public VarExp(String varName) {
+        this.varName = varName;
+    }
+
+    public static void registerVar(String varName, boolean value) {
+        cache.put(varName, value);
+    }
+
+    @Override
+    public boolean interept() {
+        return cache.get(this.varName);
+    }
+}
+
+// 常量表达式
+public class ConstantExp implements Exp {
+    private boolean value;
+
+    public ConstantExp(boolean value) {
+        this.value = value;
+    }
+
+    @Override
+    public boolean interept() {
+        return this.value;
+    }
+}
+
+// 与
+public class AndExp implements Exp {
+    private Exp exp1, exp2;
+
+    public AndExp(Exp exp1, Exp exp2) {
+        this.exp1 = exp1;
+        this.exp2 = exp2;
+    }
+
+    @Override
+    public boolean interept() {
+        return exp1.interept() && exp2.interept();
+    }
+}
+
+// 或
+public class OrExp implements Exp {
+    private Exp exp1, exp2;
+
+    public OrExp(Exp exp1, Exp exp2) {
+        this.exp1 = exp1;
+        this.exp2 = exp2;
+    }
+
+    @Override
+    public boolean interept() {
+        return exp1.interept() || exp2.interept();
+    }
+}
+
+// 非
+public class NotExp implements Exp {
+    private Exp exp;
+
+    public NotExp(Exp exp) {
+        this.exp = exp;
+    }
+
+    @Override
+    public boolean interept() {
+        return !exp.interept();
+    }
+}
+
+```
+
+那么对于本章开头提出的问题，则通过以下代码即可解决：
+```
+// 代码片段3.16.2
+public static void main(String args[]) {
+    VarExp.registerVar("a", true);
+    VarExp.registerVar("b", false);
+
+    VarExp a = new VarExp("a");
+    VarExp b = new VarExp("b");
+    // ((a && b) || true) && (!b || !a)
+    Exp exp = new AndExp(
+        new OrExp(new AndExp(a, b), new ConstantExp(true)),
+        new OrExp(new NotExp(b), new NotExp(a)));
+    System.out.println(exp.interept());
+}
+```
+
+解释器模式刻意忽略了一个问题：我们如何将一个字符串转化成表达式的抽象定义。比如代码片段3.16.2中的((a && b) || true) && (!b || !a)该如何转换为new AndExp(new OrExp(new AndExp(a, b), new ConstantExp(true)), new OrExp(new NotExp(b), new NotExp(a)))，总不能每次都是人工转换吧，业务调用方更多的时候是希望我们能提供这样一个方法，传入一些变量定义的字符串和想要计算的表达式，函数直接返回结果就好。
+
+```
+// 代码片段3.16.3
+/**
+ * @param initExps 变量定义
+ * @param exp 要计算的表达式
+ */
+public static boolean getResult(String initExps, String str) {
+    // some code
+}
+```
+
+字符串的解析恰恰是整个编程题最难的部分，但这只是一个稍显困难的字符串的解析，而这确实与设计模式无关，感兴趣的同学可以参考3.25章节，里面包含有一个实现了字符串解析的简单实现。
+
+### 3. 总结
+解释器模式和组合模式的思想雷同，组合模为了能统一逻辑处理，将父节点和各种类型的子节点抽象为了一个概念；解释器模式为了能统一逻辑处理，则是将复合表达式和不同类型的单表达式抽象为了一个概念；二者本质都是利用了一个BA转换。
+
+### 3. 思路扩展
+1. 解释器的应用场景
+解释器模式是我们平时很少用到的一种模式，从解释器模式自身的定义来看，就注定如此：给定一个语言，定义它的文法的一种表示，并定义一个解释器，这个解释器使用该表示来解释语言中的句子。除了故意学习，这在我们的平常工作中基本就不会遇到。
+
+如果我们仅仅以应用场景的视角来理解“解释器模式”，将会是一种巨大损失。
+> 从我们之前的讨论中也可以发现，即使是完全相同的设计手段和设计思想，应用在不同的应用场景中可能就会被定义为不同的模式，比如工厂方法模式和模板方法模式。
+
+如果我们能抛开解释器模式的应用场景限制，会发现解释器模式中其实隐含有一种重要的思想——递归。递归并不是一种单纯的技术手段，而是一种极其重要的设计思想，它利用抽象，将一个复杂问题和该问题的子集抽象为一个概念，极大的简化了问题最终的复杂性。
+> 虽然递归也是一种特定场景的BA转换，但是这种将整体和局部进行统一抽象的BA转换非常精妙，这在所有其他设计模式中都没有出现过。前面我们有说解释器模式和组合模式很像，但两者有细微的差别，的组合模式是将上级或下级，父节点和子节点进行统一抽象，这和解释器的递归还是有所区别。组合模式中的子节点一般都不是父节点的一部分，但解释器模式的子表达式就是父表达式的一部分。
+
+// TODO 画一个图  组合模式是二叉树那种，解释器是圈圈套圈圈。
+
+试想如果让我们一年销售额一个亿，会发现无从入手。但如果分解一下：一年一个亿，即一个季度卖2500万，假设我们有25个销售团队，每个团队有10个销售人员，那么就是每个人一个月卖2500万/25（个团队）/10（个人）/3（个月）=3万多的样子，而每个人的月销售额3万则是一个可以着手的事情。假定我们知道了一种可行策略，可以让一个销售人员月卖三万，那么卖一个亿仅仅就是将这种销售策略赋能给所有的销售人员，然后重复执行而已。在软件上，则表现为一个函数的重复调用。
+
+对于本文中的例子而言，与或非就是三种最基本的策略，无论多么复杂的表达式，都是这三种基本策略的重复执行。我们只需要定好一个规则将一个复杂的表达式拆分成一个一个的子表达式即可。
+
+2. 递归思想的运用
+笔者曾经组织过一次部门内部的编程比赛。题目如下：
+有一个兔子王国，在最开始（第0个月）只有一对刚出生的小兔子，兔子长到第3个月的时候开始每个月都会生一对小兔子，出生的小兔子长到三个月还会再生小兔子，每对兔子的寿命为12个月。
+- 假设每对兔子都是一公一母，而且中途不会出现意外情况死亡；
+- 兔子在第十二个月，会生完兔子再死掉。
+- 不要写死兔子的成熟期和寿命，即题目中的3和12两个数字可以轻易修改。
+- 不需要考虑性能；
+那么请问在第N(0<=N<=50)个月的时候兔子王国总共有多少对兔子？
+
+> 我建议读者们先自己做一下这道题，然后再继续往下看。
+
+如果理解了解释器模式的本质，这道题应该非常简单，代码也会极其简洁。
+
+但是很遗憾，笔者的部门一共有30名左右开发（大都是两年左右开发经验，有少量经验丰富的老程序员），结果有70%多的人没有在规定时间内完成编码；完成题目的人里面只有一人使用了递归抽象这种思想，其他人都是循环嵌套类似的逻辑，代码相当复杂，有些代码到最后我也没有看明白其中的逻辑。
+
+最终的结果是：只有使用了抽象和递归的那名同事通过了全部用例，其他人或多或少都存在一些逻辑错误，而且扩展性极差，N一旦大于50，必定会出错。
+
+对于这个题目，如果单纯的罗列场景会非常复杂（我们按出生时间从0开始对所有兔子进行编号）：
+1. N < 3：就只有0号一对兔子；
+2. N >= 3 && N < 6：就是0号兔子和它的孩子们
+3. N > 6 && N < 12场景就特别复杂了，因为1号兔子已经也开始生小孩了，需要统计0号兔子，1号兔子的子孙，再加上他们自己。
+4. N > 12，此时0号兔子死亡，计数时要开始考虑不要统计0号兔子了
+5. ...
+
+此时我们一定会开始寻找这些场景的一些逻辑规律，即使找到了，在转换成代码时，大脑会开始感觉有点不够用。
+
+而真正完美的解决方式，只能是将所有的场景使用一种统一抽象进行归纳：即统计一下“我”的所有孩子的子孙总数，如果“我”自己还活着，则加一。而这个问题的子问题，即“孩子的子孙总数”依然是这个问题本身；这样层层递归，最终的子问题就只有一条：如果“我”还活着，就加一。
+
+按照这种抽象之后，我们只需要做两件事：
+1. 找到我所有的孩子；
+2. 如果“我”还活着，就加一；
+
+```
+// 代码片段3.16.4
+public class Rabbit {
+    private int birthMonth;
+
+    private static final int LIFE = 12;
+
+    private static final int BIRTH_START_MONTH = 3;
+    
+    public Rabbit(int birthDay) {
+        this.birthMonth = birthDay;
+    }
+
+    /**
+     * 获取第N个月当前兔子的子孙总数，包含自己
+     * @return
+     */
+    public long getChildNum(int N) {
+        long sum = 0;
+        // 获取它的所有孩子的子孙数量
+        for (int i = this.birthMonth + BIRTH_START_MONTH; i <= Math.min(N, this.birthMonth + LIFE); i++) {
+            Rabbit child = new Rabbit(i);
+            sum += child.getChildNum(N);
+        }
+        // 自己还活着，再+1
+        return sum + (isDead(N) ? 0 : 1);
+    }
+
+    private boolean isDead(int N) {
+        return this.birthMonth + LIFE <= N;
+    }
+
+    public static void main(String[] args) {
+        // 0号兔子
+        Rabbit rabbit = new Rabbit(0);
+        // 获取第n个月时兔子总数
+        int n = 30;
+        System.out.println(rabbit.getChildNum(n));
+    }
+}
+
+```
+
+代码片段3.16.4除掉main函数和一些注释说明外，核心代码10行都不到；而且这种写法逻辑非常简单，只要想清楚了策略和分解规则，代码几分钟就应该写完了。
+
+值得注意的是，整个代码中并未出现任何接口。很多人会认为只有接口或抽象类才算抽象，这其实是一种错误的理解。代码片段3.16.4中getChildNum函数的内容正是一个抽象的离职，3个月的兔子，4个月的兔子，10个月的兔子，无论是第几代兔子，要计算其子孙兔子总数都被抽象为了同一种逻辑，缺少这种抽象，写出来的代码将是大段大段的if else和嵌套循环。
+
+对于解释器来说，Exp就是抽象的结果，无论是多长的表达式，都是执行exp的interept函数；不同的是它的策略比兔子问题要多一些而已。
+
+针对上面的代码，如果需要考虑性能，我们可以做一些缓存，毕竟同一个月出生的兔子的子孙总数肯定相同，这样可以避免大量重复计算，这是在享元模式中讨论过的内容。
+```
+// 代码片段3.16.5
+public class Rabbit {
+
+    private static final int LIFE = 12;
+
+    private static final int BIRTH_START_MONTH = 3;
+
+    **private static final Map<Integer, Long> CACHE = new HashMap<>();**
+
+    private int birthMonth;
+    
+    public Rabbit(int birthDay) {
+        this.birthMonth = birthDay;
+    }
+
+    public static void main(String[] args) {
+        // 0号兔子
+        Rabbit rabbit = new Rabbit(0);
+        // 获取第n个月时兔子总数
+        int n = 100;
+        System.out.println(rabbit.getChildNum(n));
+    }
+
+    /**
+     * 获取第N个月当前兔子的子孙总数，包含自己
+     * @return
+     */
+    public long getChildNum(int N) {
+        if (CACHE.containsKey(this.birthMonth)) {
+            **return CACHE.get(this.birthMonth);**
+        } else {
+            long sum = 0;
+            // 获取它的所有孩子的子孙数量
+            for (int i = this.birthMonth + BIRTH_START_MONTH; i <= Math.min(N, this.birthMonth + LIFE); i++) {
+                Rabbit child = new Rabbit(i);
+                sum += child.getChildNum(N);
+            }
+            // 自己还活着，再+1
+            sum += (isDead(N) ? 0 : 1);
+            **CACHE.put(this.birthMonth, sum);**
+            return sum;
+        }
+    }
+
+    private boolean isDead(int N) {
+        return this.birthMonth + LIFE <= N;
+    }
+}
+```

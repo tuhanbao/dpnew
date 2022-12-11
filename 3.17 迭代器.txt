@@ -1,0 +1,363 @@
+### 1. 原始场景和代码
+在讨论迭代器模式之前，我们必须忘记一些东西：JDK中Collection和Map的所有子类以及相关的工具包。即假定jdk没有提供任何集合类相关的实现。
+
+现在的需求是：我们知道数组长度是固定的，对于频繁的插入和删除是很麻烦的，我们需要自己实现一个简单的List，只需要支持往里面新增、删除和插入String元素即可；不用考虑性能、越界以及合法性等等。
+
+```
+// 代码片段3.17.1
+public class MyList {
+	// 初始化长度为16
+    private String[] array = new String[16];
+
+    private int position = 0;
+
+    public void add(String item) {
+		if (position >= array.length) {
+			ensureCapacity();
+		}
+        array[position++] = item;
+    }
+	
+	private void ensureCapacity() {
+		String[] oldArray = array;
+		array = new String[array.length << 1];
+		System.arraycopy(oldArray, 0, array, 0, position);
+	}
+	
+	public void insert(int index, String item) {
+		if (position >= array.length) {
+			ensureCapacity();
+		}
+		System.arraycopy(array, index, array, index + 1, position - index);
+        array[index] = item;
+		position++;
+    }
+	
+	public void remove(int index) {
+		System.arraycopy(array, index + 1, array, index, position - index);
+        array[position--] = null;
+    }
+}
+```
+
+### 2. 演变过程
+需求一：**我们希望这个List能提供一个最基本的遍历操作，让我们可以挨个取出里面的元素。**
+这个需求也比较简单，稍微修改下上面的代码即可：
+```
+// 代码片段3.17.2
+public class MyList {
+
+    private String[] array = new String[16];
+
+    private int position = 0;
+
+    public int currentIndex = 0;
+	
+    public void startLoop() {
+		// 将游标初始化为0
+        return currentIndex = 0;
+    }
+
+    public boolean hasNext() {
+        return currentIndex < position;
+    }
+
+    public String next() {
+        return array[currentIndex++];
+    }
+	
+	// some code...
+}
+
+```
+
+// 我们模拟一个遍历打印，这样写代码即可：
+public static void printList(MyList myList) {
+	myList.startLoop();
+    while (myList.hasNext()) {
+        System.out.println(myList.next());
+    }
+}
+```
+
+假设这个简单的List非常受欢迎，被全公司的多个业务模块普遍使用。
+
+但是突然有一天，有部分模块说因为业务上的要求，想增加一个功能，就是希望这个List能帮忙自动去除重复元素；过了几天，又有人说他们经常在一个元素后面追加元素，最好使用链表来代替数组，这样性能更好一些。
+
+为了兼容以前的老用户，我们还必须保留最开始的MyList，因为并不是所有人都想自动去重或者使用链表；于是我们新开发了一些MyLinkedList和MySet等集合类。但是问题来了，这些使用新集合的模块怨声载道，因为他们的工程中存在大量类似printList那样的代码，他们不得不做大量修改。
+
+```
+public static void printList(MyList myList) {
+	myList.startLoop();
+    while (myList.hasNext()) {
+        System.out.println(myList.next());
+    }
+}
+
+需要改为:
+
+public static void printList(MyLinkedList myLinkedList) {
+	myLinkedList.startLoop();
+    while (myLinkedList.hasNext()) {
+        System.out.println(myLinkedList.next());
+    }
+}
+
+如果使用了多种集合，还需要提供多各printList方法。
+```
+
+因为一开始没有考虑这种扩展，此时挨骂我们也只能忍了。但是吃一堑长一智，我们必须避免后续此类事情的再次发生，于是我们自己给自己提了一个新的需求。
+
+需求二：**在未来增加新的集合实现时，最好不要影响既有的业务调用者；如果有人想切换新的集合，也尽量让改动尽可能的小。**
+这是很明显是一种BA转换需求，一个集合有着多种不同实现。于是我们抽了一个公共的集合类List，让MyList，MyLinkedList和MySet都来实现它:
+```
+// 代码片段3.17.3
+public interface List {
+	void add(String item);
+	
+	void insert(int index, String item);
+	
+	void remove(int index);
+	
+	void startLoop();
+	
+	boolean hasNext();
+	
+	String next();
+}
+
+
+
+// 业务调用者则直接使用抽象接口List进行传参，不要依赖具体的类。
+public static void printList(List list) {
+	list.startLoop();
+    while (list.hasNext()) {
+        System.out.println(list.next());
+    }
+}
+```
+
+但是，新的问题又来了，有很多模块投诉我们的集合有bug，经过我们的定位，发现确实是我们的集合在并发场景下遍历存在严重问题：
+
+```
+// 线程1和线程2使用同一个list
+List list = new MyList();
+list.add("1");
+list.add("2");
+list.add("3");
+
+// 线程一
+list.startLoop();
+while (list.hasNext()) {
+	System.out.println(list.next());
+}
+
+// 线程二
+list.startLoop();
+while (list.hasNext()) {
+	System.out.println(list.next());
+}
+
+```
+
+因为我们的currentIndex定义在了MyList类里面，如果同时有两个线程遍历，会互相影响。线程一刚打印了"1"，线程二就将currentIndex重置为了0；而且线程一还把线程二本该打印的元素给抢走了。
+
+于是，为了修复这个bug，我们提出了需求三。
+
+需求三：**希望多个人遍历时互不影响。**
+我们发现，之所以很多集合没法支持同时遍历，就是因为遍历时要缓存当前下标等一些临时数据。像享元模式一样，我们把这些遍历时强相关的元素和list本身的属性分开管理就好了。
+
+实现分开管理最好的方式是，我们给List提供一个size方法和按照下标取元素的get方法，让业务方自己管理游标，于是代码变成了这样：
+
+```
+// 代码片段3.17.4
+public interface List {
+	void add(String item);
+	
+	void insert(int index, String item);
+	
+	void remove(int index);
+	
+	int size();
+	
+	String get(int index);
+}
+
+public class MyList implements List {
+
+    private String[] array = new String[100];
+
+    private int position = 0;
+
+	@Override
+    public void add(String item) {
+		if (position >= array.length) {
+			ensureCapacity();
+		}
+        array[position++] = item;
+    }
+	
+	private void ensureCapacity() {
+		String[] oldArray = array;
+		array = new String[array.length << 1];
+		System.arraycopy(oldArray, 0, array, 0, position);
+	}
+	
+	@Override
+	public void insert(int index, String item) {
+		if (position >= array.length) {
+			ensureCapacity();
+		}
+		System.arraycopy(array, index, array, index + 1, position - index);
+        array[index] = item;
+		position++;
+    }
+	
+	@Override
+	public void remove(int index) {
+		System.arraycopy(array, index + 1, array, index, position - index);
+        array[position--] = null;
+    }
+	
+	@Override
+	public int size() {
+		return position;
+	}
+	
+	@Override
+	public String get(int index) {
+		return array[index];
+	}
+}
+
+// 遍历则可以变成这样，i其实充当了currentIndex的作用
+public static void printList(List list) {
+    for (int i = 0; i < list.size(); i++) {
+        System.out.println(list.get(i));
+    }
+}
+```
+
+但是，这种方法有个致命缺陷：这会强制要求所有的集合必须实现get(int index)方法，但是有些数据结构并不一定能做到。MyLinkedList使用的数据结构是链表，如果使用下标获取元素性能会特别差；而MySet则是使用的hash表，它甚至都没有下标的概念。
+
+这里为了兼容种种可能存在的集合，我们决定，在遍历时返回一个全新的临时对象，由它来保管当前遍历的一些临时数据，需要保管什么临时数据由各个集合实现类自己决定。
+这样既可以做到多个人同时遍历互不影响，也不会强制一些集合实现一些与自己数据结构不相符的方法。
+
+通过设计之后，我们把顶层接口变成如下：
+```
+// 代码片段3.17.5
+public interface List {
+	void add(String item);
+	
+	void insert(int index, String item);
+	
+	void remove(int index);
+
+    Iterator iterator();
+}
+
+public interface Iterator {
+    boolean hasNext();
+
+    String next();
+}
+
+
+// 调用者的代码则会相应修改为：
+public static void printList(List list) {
+    for (Iterator it = list.iterator(); it.hasNext(); ) {
+        System.out.println(it.next());
+    }
+}
+```
+
+对于MyList的实现，则改成了这样：
+
+```
+// 代码片段3.17.6
+public class MyList implements List {
+
+    protected String[] array = new String[100];
+
+    protected int position = 0;
+
+    // some code...
+
+    @Override
+    public Iterator iterator() {
+        return new MyIterator(this);
+    }
+}
+
+// 增加MyList的Iterator实现
+public class MyIterator implements Iterator {
+
+    private MyList list;
+
+    private int currentIndex = 0;
+
+    public MyIterator(MyList list) {
+        this.list = list;
+    }
+
+    @Override
+    public boolean hasNext() {
+        return currentIndex < list.position;
+    }
+
+    @Override
+    public String next() {
+        return list.array[currentIndex++];
+    }
+}
+```
+此时MyLinkedList和MySet也可以结合自己的特性实现自己的Iterator即可，笔者不再罗列。
+
+### 3. 思路扩展
+1. 迭代器是一个被遗忘的模式
+由于集合类是非常基础的工具类，jdk直接提供了非常全套的工具包，导致迭代器在我们平常工作中几乎不可见。
+比如下面这段代码：
+```
+for (String s : list) {
+	// some code...
+}
+```
+
+由于jdk已经用语法糖将其包裹住了，导致很多人甚至都不知道这其实用的就是迭代器：任何一个实现了Iterable接口类都可以使用for in语法。
+
+要真正的理解迭代器模式，可能需要我们从零开始实现一套扩展性良好的集合工具包。但又不得不说，迭代器模式也只是一个基本的BA转换：给B定一个抽象接口C。只不过在迭代器模式中C定义的是一些与集合强相关的遍历操作而已，如果将这些方法改个名，会发现它与很多其他BA转换的设计模式并没有太大区别。
+
+当然，因为需求三的影响，我们将C的这些函数定义拆分到了两个接口中，再通过组合的方式放在了一起，这也是由于需求驱动我们被动作出的一些基本演进，并不复杂。
+
+有一点值得注意的是，在jdk的迭代器实现中，MyIterator一般是作为内部类存在的，其实这只是利用java的一些特性所做的一点点偷懒：因为java的内部类可以直接访问外部类的属性和方法。而且这样还可以不用将集合各自的Iterator实现暴露出去。
+
+所以上面的代码可以进一步优化为：
+```
+public class MyList implements List {
+
+    private String[] array = new String[100];
+
+    private int position = 0;
+
+    // some code...
+
+    @Override
+    public Iterator iterator() {
+        return new MyIterator();
+    }
+
+    private class MyIterator implements Iterator {
+        private int currentIndex = 0;
+
+        @Override
+        public boolean hasNext() {
+            return currentIndex < position;
+        }
+
+        @Override
+        public String next() {
+            return array[currentIndex++];
+        }
+    }
+}
+```
